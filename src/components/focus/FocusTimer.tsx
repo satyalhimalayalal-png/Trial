@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFocusTimer } from "@/hooks/useFocusTimer";
 
 function formatDuration(totalSec: number): string {
@@ -27,41 +27,6 @@ const DEFAULT_CONFIG: PomodoroConfig = {
   breakMinutes: 5,
 };
 
-function playPhaseEndRingtone() {
-  if (typeof window === "undefined") return;
-  const AudioContextImpl = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextImpl) return;
-
-  try {
-    const context = new AudioContextImpl();
-    const now = context.currentTime;
-    const pattern = [0, 0.22, 0.44, 0.66];
-    const freqs = [880, 1046, 1318, 1567];
-
-    pattern.forEach((offset, index) => {
-      const osc = context.createOscillator();
-      const gain = context.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freqs[index % freqs.length];
-
-      gain.gain.setValueAtTime(0.0001, now + offset);
-      gain.gain.exponentialRampToValueAtTime(0.35, now + offset + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.17);
-
-      osc.connect(gain);
-      gain.connect(context.destination);
-      osc.start(now + offset);
-      osc.stop(now + offset + 0.19);
-    });
-
-    window.setTimeout(() => {
-      void context.close();
-    }, 1400);
-  } catch {
-    // no-op: silently ignore audio playback failures
-  }
-}
-
 export function FocusTimer() {
   const timer = useFocusTimer();
   const [mode, setMode] = useState<TimerMode>("stopwatch");
@@ -72,6 +37,7 @@ export function FocusTimer() {
   const [remainingSec, setRemainingSec] = useState(DEFAULT_CONFIG.focusMinutes * 60);
   const [pomodoroRunning, setPomodoroRunning] = useState(false);
   const [pomodoroOwnsSession, setPomodoroOwnsSession] = useState(false);
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   const phaseDurationSec = useMemo(() => {
     return (phase === "focus" ? config.focusMinutes : config.breakMinutes) * 60;
@@ -82,6 +48,28 @@ export function FocusTimer() {
   }, [phaseDurationSec, remainingSec]);
   const ringFillColor = phase === "focus" ? "#cf2d2d" : "#2f72ea";
   const ringTrackColor = phase === "focus" ? "#4c1f1f" : "#1f3457";
+
+  useEffect(() => {
+    if (typeof Audio === "undefined") return;
+    const audio = new Audio("/sounds/pomodoro-end.mp4");
+    audio.preload = "auto";
+    ringtoneRef.current = audio;
+
+    return () => {
+      audio.pause();
+      ringtoneRef.current = null;
+    };
+  }, []);
+
+  const playPhaseEndRingtone = () => {
+    const audio = ringtoneRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    void audio.play().catch(() => {
+      // no-op: browser blocked autoplay or unsupported codec
+    });
+  };
 
   useEffect(() => {
     if (mode !== "pomodoro") {
