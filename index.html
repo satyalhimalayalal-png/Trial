@@ -6,10 +6,7 @@
     <title>Cheqlist Style Focus</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -17,88 +14,114 @@
       <header class="topbar">
         <input id="searchInput" class="search" placeholder="Search tasks" />
         <h1>CHEQLIST</h1>
-        <div class="icons">
-          <button class="icon-btn" id="homeBtn" title="Home" aria-label="Home">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 12 4l8 8v8h-5v-5H9v5H4z" /></svg>
+        <div class="top-icons">
+          <button class="icon-btn" id="homeBtn" aria-label="Home" title="Home">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm18.37-11.49a1 1 0 0 0 0-1.41l-1.72-1.72a1 1 0 0 0-1.41 0l-1.34 1.34 3.75 3.75 1.72-1.67z" /></svg>
           </button>
-          <button class="icon-btn" id="timerBtn" title="Timer" aria-label="Timer">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-7-7V3zm1 4h-2v6l5 3 1-1.73-4-2.27z" /></svg>
+          <button class="icon-btn" id="clockBtn" aria-label="Focus clock" title="Focus clock">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.75A10.25 10.25 0 1 0 22.25 12 10.26 10.26 0 0 0 12 1.75zm0 18.5A8.25 8.25 0 1 1 20.25 12 8.26 8.26 0 0 1 12 20.25z" /><path d="M12.75 6.75h-1.5v5.6l4.5 2.7.75-1.23-3.75-2.22V6.75z" /></svg>
           </button>
-          <button class="icon-btn" id="analyticsBtn" title="Analytics" aria-label="Analytics">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16v2H2V3h2v16zm2-2V9h3v8H6zm5 0V5h3v12h-3zm5 0v-6h3v6h-3z" /></svg>
+          <button class="icon-btn" id="statsBtn" aria-label="Analytics" title="Analytics">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h2v18H3V3zm16 6h2v12h-2V9zM8 13h2v8H8v-8zm5-10h2v18h-2V3z" /></svg>
           </button>
-          <button class="icon-btn" id="quickAddBtn" title="Add task" aria-label="Add task">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" /></svg>
+          <button class="icon-btn" id="settingsBtn" aria-label="Preferences" title="Preferences">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m19.14 12.94.04-.94-.04-.94 2.03-1.58a.5.5 0 0 0 .12-.63l-1.92-3.32a.51.51 0 0 0-.6-.22l-2.39.96a7.16 7.16 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.57.23-1.12.54-1.63.94l-2.39-.96a.51.51 0 0 0-.6.22L2.67 8.85a.5.5 0 0 0 .12.63l2.03 1.58-.04.94.04.94-2.03 1.58a.5.5 0 0 0-.12.63l1.92 3.32c.13.22.4.31.63.22l2.39-.96c.5.39 1.06.71 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.57-.23 1.13-.55 1.63-.94l2.39.96c.23.09.5 0 .63-.22l1.92-3.32a.5.5 0 0 0-.12-.63l-2.03-1.58zM12 15.25A3.25 3.25 0 1 1 15.25 12 3.25 3.25 0 0 1 12 15.25z" /></svg>
           </button>
         </div>
       </header>
 
       <section id="homeView" class="view active">
-        <div class="day-scroll-wrap">
-          <button id="scrollLeftBtn" class="rail-btn left" aria-label="Scroll left">&#8249;</button>
+        <div class="day-shell">
+          <div class="nav-stack left">
+            <button id="shiftLeftDay" class="rail-btn" title="Back one day" aria-label="Back one day">&#8249;</button>
+            <button id="shiftLeftWeek" class="rail-btn" title="Back one week" aria-label="Back one week">&#171;</button>
+          </div>
+
           <div class="day-scroll" id="dayScroll">
-            <div class="day-grid" id="dayGrid"></div>
+            <div class="day-strip" id="dayStrip"></div>
           </div>
-          <button id="scrollRightBtn" class="rail-btn right" aria-label="Scroll right">&#8250;</button>
+
+          <div class="nav-stack right">
+            <button id="shiftRightDay" class="rail-btn" title="Forward one day" aria-label="Forward one day">&#8250;</button>
+            <button id="shiftRightWeek" class="rail-btn" title="Forward one week" aria-label="Forward one week">&#187;</button>
+          </div>
         </div>
 
-        <div class="lower-wrap">
-          <section class="bucket">
-            <div class="bucket-head">SOMEDAY</div>
-            <ul class="task-lines compact" id="somedayList"></ul>
-          </section>
-
-          <section class="bucket split">
-            <div>
-              <div class="bucket-head center">THIS WEEK</div>
-              <ul class="task-lines compact" id="thisWeekList"></ul>
-            </div>
-            <div>
-              <div class="bucket-head center">THIS MONTH</div>
-              <ul class="task-lines compact" id="thisMonthList"></ul>
-            </div>
-          </section>
-        </div>
-      </section>
-
-      <section id="timerView" class="view">
-        <div class="timer-stage">
-          <div class="timer-top">
-            <h2>TIMER</h2>
-            <select id="timerTaskLink"></select>
-          </div>
-
-          <div class="ring-wrap">
-            <svg viewBox="0 0 360 360" class="timer-ring" aria-label="Timer ring">
-              <circle cx="180" cy="180" r="138" class="ring-track"></circle>
-              <circle cx="180" cy="180" r="138" class="ring-progress" id="ringProgress"></circle>
-            </svg>
-            <div class="timer-core">
-              <p id="timerDisplay">25:00</p>
-              <p id="timerModeLabel">Work</p>
-              <div class="timer-actions">
-                <button class="btn" id="startPause">Start</button>
-                <button class="btn" id="resetTimer">Reset</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="timer-config">
-            <label>Work <input id="workMinutes" type="number" min="1" max="180" value="25" /></label>
-            <label>Break <input id="breakMinutes" type="number" min="1" max="60" value="5" /></label>
-            <button class="btn" id="applyTimer">Apply</button>
-          </div>
-
-          <div class="timer-task-list">
-            <p>Pending tasks</p>
-            <ul id="timerTasks"></ul>
-          </div>
+        <div class="lower-shell">
+          <article class="list-block">
+            <h3>THIS WEEK</h3>
+            <ul id="weekList" class="task-lines lower-lines"></ul>
+          </article>
+          <article class="list-block">
+            <h3>THIS MONTH</h3>
+            <ul id="monthList" class="task-lines lower-lines"></ul>
+          </article>
+          <article class="list-block">
+            <h3>THIS YEAR</h3>
+            <ul id="yearList" class="task-lines lower-lines"></ul>
+          </article>
         </div>
       </section>
 
-      <section id="analyticsView" class="view">
-        <div class="analytics-grid">
-          <article class="panel">
+      <section id="clockView" class="view">
+        <div class="clock-page">
+          <div class="clock-header">
+            <div class="clock-day">
+              <h2 id="clockDayName">SUNDAY</h2>
+              <p id="clockDayDate">MARCH 08, 2026</p>
+            </div>
+            <div class="clock-nav">
+              <button id="clockPrevDay">Prev</button>
+              <button id="clockToday">Today</button>
+              <button id="clockNextDay">Next</button>
+            </div>
+          </div>
+
+          <div class="clock-panel">
+            <div class="clock-mode-switch">
+              <button id="modePomodoro" class="mode-btn active">Pomodoro</button>
+              <button id="modeStopwatch" class="mode-btn">Stopwatch</button>
+            </div>
+
+            <p id="clockDisplay">00:00:00</p>
+
+            <div class="clock-controls">
+              <button id="clockStartPause">Start</button>
+              <button id="clockStopLog">Cancel</button>
+              <button id="clockReset">Reset</button>
+            </div>
+
+            <div class="clock-config">
+              <label>Session minutes <input id="sessionMinutes" type="number" min="1" max="180" value="25" /></label>
+              <p id="activeTaskInfo">No selected task</p>
+            </div>
+          </div>
+
+          <div class="clock-list-panel">
+            <div class="clock-list-head">
+              <h3 id="clockListHeading">SUNDAY</h3>
+              <p>Click a line to add task. Click a task to select it.</p>
+            </div>
+            <ul id="clockDayList" class="task-lines clock-lines"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="statsView" class="view">
+        <div class="stats-page">
+          <article class="stats-card">
+            <h3>Daily totals</h3>
+            <div id="dailyTotals" class="daily-totals"></div>
+          </article>
+
+          <article class="stats-card">
+            <h3>Focus graph</h3>
+            <div class="hour-graph-wrap">
+              <svg id="hourGraph" class="hour-graph" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+            </div>
+          </article>
+
+          <article class="stats-card">
             <h3>Yearly Focus Heatmap</h3>
             <p>Intensity by day with weekday rows and month columns.</p>
             <div class="months" id="months"></div>
@@ -106,70 +129,105 @@
               <div class="weekdays" id="weekdays"></div>
               <div class="heat-grid" id="heatGrid"></div>
             </div>
-            <p id="selectedHeat">Click a day to view date and focus time.</p>
+            <p id="selectedHeat" class="selected-heat">Click a day to view date and focus time.</p>
           </article>
 
-          <article class="panel">
-            <h3>Peak + Weekly Statistics</h3>
-            <div class="peak-chart-wrap">
-              <div class="peak-chart" id="peakChart"></div>
-              <div class="peak-axis"><span>0</span><span>6</span><span>12</span><span>18</span><span>23</span></div>
-            </div>
-            <div class="weekday-chips" id="weekdayChips"></div>
-
-            <div class="donut-row">
-              <div class="metric-card">
-                <svg viewBox="0 0 120 120" class="mini-ring">
-                  <circle cx="60" cy="60" r="38" class="mini-track"></circle>
-                  <circle cx="60" cy="60" r="38" class="mini-value" id="completionRing"></circle>
-                </svg>
-                <div><strong id="completionPct">0%</strong><span>Focus-day completion rate</span></div>
-              </div>
-
-              <div class="metric-card">
-                <svg viewBox="0 0 120 120" class="mini-ring">
-                  <circle cx="60" cy="60" r="38" class="mini-track"></circle>
-                  <circle cx="60" cy="60" r="38" class="mini-value" id="peakRing"></circle>
-                </svg>
-                <div><strong id="peakPct">0%</strong><span>Peak day concentration</span></div>
-              </div>
-            </div>
-
-            <div id="weekLog" class="week-log"></div>
-            <div id="weekSummary" class="summary"></div>
+          <article class="stats-card">
+            <h3>Recent daily breakdown</h3>
+            <div id="recentLogs" class="recent-logs"></div>
+            <p id="weeklySummary" class="weekly-summary"></p>
           </article>
         </div>
       </section>
     </div>
 
-    <dialog id="addTaskDialog">
-      <form method="dialog" id="addTaskForm">
-        <h3>Add Task</h3>
-        <label>Task title <input id="taskTitle" required /></label>
-        <label>
-          Group
-          <select id="taskGroup">
-            <option value="day">Day</option>
-            <option value="someday">Someday</option>
-            <option value="week">This week</option>
-            <option value="month">This month</option>
-          </select>
-        </label>
-        <label id="daySelectWrap">
-          Day
-          <select id="taskDay"></select>
-        </label>
-        <menu>
-          <button value="cancel">Cancel</button>
-          <button id="saveTask" value="default">Save</button>
-        </menu>
-      </form>
-    </dialog>
+    <aside id="settingsPanel" class="settings-panel hidden" aria-hidden="true">
+      <div class="settings-head">
+        <h2>PREFERENCES</h2>
+      </div>
 
-    <template id="lineTemplate">
-      <li class="line-item">
-        <label><input type="checkbox" /><span></span></label>
-        <button class="x" aria-label="Delete task">&#215;</button>
+      <section class="setting-group">
+        <p>ACCENT COLOR</p>
+        <div class="choice-grid accent-grid" id="accentChoices">
+          <button class="choice" data-accent="pink">PINK</button>
+          <button class="choice" data-accent="blue">BLUE</button>
+          <button class="choice" data-accent="green">GREEN</button>
+          <button class="choice" data-accent="amber">AMBER</button>
+          <button class="choice" data-accent="rose">ROSE</button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <p>COLUMNS</p>
+        <div class="choice-row" id="columnChoices">
+          <button class="choice" data-columns="3">3</button>
+          <button class="choice" data-columns="7">7</button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <p>TEXT SIZE</p>
+        <div class="choice-row" id="textChoices">
+          <button class="choice" data-text="sm">SM</button>
+          <button class="choice" data-text="lg">LG</button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <p>SPACING</p>
+        <div class="choice-row" id="spacingChoices">
+          <button class="choice" data-spacing="compact">COMPACT</button>
+          <button class="choice" data-spacing="cozy">COZY</button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <p>BULLET STYLE</p>
+        <div class="choice-row" id="bulletChoices">
+          <button class="choice" data-bullet="dot">DOT</button>
+          <button class="choice" data-bullet="dash">DASH</button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <p>START WEEK ON</p>
+        <div class="choice-row" id="startWeekChoices">
+          <button class="choice" data-start="today">TODAY</button>
+          <button class="choice" data-start="yesterday">YESTERDAY</button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <p>THEME</p>
+        <div class="choice-row" id="themeChoices">
+          <button class="choice" data-theme="light">LIGHT</button>
+          <button class="choice" data-theme="dark">DARK</button>
+        </div>
+      </section>
+
+      <section class="setting-group toggles">
+        <label><span>Show completed</span><input type="checkbox" id="showCompletedToggle" /></label>
+        <label><span>Show lines</span><input type="checkbox" id="showLinesToggle" /></label>
+        <label><span>Celebrations</span><input type="checkbox" id="celebrationsToggle" /></label>
+      </section>
+    </aside>
+
+    <div id="recurrenceMenu" class="recurrence-menu hidden" aria-hidden="true">
+      <button data-recur="none">No repeat</button>
+      <button data-recur="daily">Daily</button>
+      <button data-recur="weekdays">Weekdays</button>
+      <button data-recur="weekly">Weekly</button>
+    </div>
+
+    <template id="taskTemplate">
+      <li class="task-item">
+        <button class="task-check" aria-label="Toggle complete"></button>
+        <span class="task-text"></span>
+        <span class="task-time"></span>
+        <div class="task-actions">
+          <button class="task-recur" title="Repeat" aria-label="Repeat">&#8635;</button>
+          <button class="task-delete" title="Delete" aria-label="Delete">&#215;</button>
+        </div>
       </li>
     </template>
 
