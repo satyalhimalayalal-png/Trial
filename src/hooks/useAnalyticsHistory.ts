@@ -17,13 +17,7 @@ interface Point {
 interface YearHeatCell {
   dateKey: string;
   value: number;
-  inMonth: boolean;
-}
-
-interface YearHeatMonth {
-  label: string;
-  month: number;
-  weeks: YearHeatCell[][];
+  inRange: boolean;
 }
 
 function forEachDaySlice(
@@ -141,40 +135,44 @@ export function useAnalyticsHistory() {
   }, [dayTotalsMap]);
 
   const yearHeatmap = useMemo(() => {
-    const year = new Date().getFullYear();
-    const months: YearHeatMonth[] = [];
+    const currentYear = new Date().getFullYear();
+    const rangeStart = new Date(currentYear - 1, 0, 1);
+    const rangeEnd = new Date(currentYear + 1, 11, 31);
+    const gridStart = startOfWeek(rangeStart, { weekStartsOn: 0 });
+    const gridEnd = addDays(startOfWeek(rangeEnd, { weekStartsOn: 0 }), 6);
 
-    for (let month = 0; month < 12; month += 1) {
-      const monthStart = new Date(year, month, 1);
-      const monthEnd = new Date(year, month + 1, 0);
-      const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-      const gridEnd = addDays(startOfWeek(monthEnd, { weekStartsOn: 0 }), 6);
+    const weeks: YearHeatCell[][] = [];
+    const monthTicks: Array<{ label: string; weekIndex: number }> = [];
+    const seenMonth = new Set<string>();
 
-      const weeks: YearHeatCell[][] = [];
-      let cursor = new Date(gridStart);
-      while (cursor <= gridEnd) {
-        const weekCells: YearHeatCell[] = [];
-        for (let day = 0; day < 7; day += 1) {
-          const date = addDays(cursor, day);
-          const dateKey = format(date, "yyyy-MM-dd");
-          weekCells.push({
-            dateKey,
-            value: dayTotalsMap.get(dateKey) ?? 0,
-            inMonth: date.getMonth() === month && date.getFullYear() === year,
-          });
+    let cursor = new Date(gridStart);
+    let weekIndex = 0;
+    while (cursor <= gridEnd) {
+      const weekCells: YearHeatCell[] = [];
+      for (let day = 0; day < 7; day += 1) {
+        const date = addDays(cursor, day);
+        const dateKey = format(date, "yyyy-MM-dd");
+        const inRange = date >= rangeStart && date <= rangeEnd;
+        weekCells.push({
+          dateKey,
+          value: dayTotalsMap.get(dateKey) ?? 0,
+          inRange,
+        });
+
+        if (date.getDate() === 1 && inRange) {
+          const monthKey = format(date, "yyyy-MM");
+          if (!seenMonth.has(monthKey)) {
+            seenMonth.add(monthKey);
+            monthTicks.push({ label: format(date, "MMM"), weekIndex });
+          }
         }
-        weeks.push(weekCells);
-        cursor = addDays(cursor, 7);
       }
-
-      months.push({
-        label: format(monthStart, "MMM"),
-        month,
-        weeks,
-      });
+      weeks.push(weekCells);
+      cursor = addDays(cursor, 7);
+      weekIndex += 1;
     }
 
-    return { months };
+    return { weeks, monthTicks };
   }, [dayTotalsMap]);
 
   const completedTasks = useMemo(() => (tasks ?? []).filter((task) => task.completed), [tasks]);

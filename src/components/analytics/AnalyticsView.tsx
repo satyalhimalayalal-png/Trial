@@ -47,49 +47,6 @@ function MiniBarChart({ points }: { points: Point[] }) {
   );
 }
 
-function MiniLineChart({ points }: { points: Point[] }) {
-  const max = Math.max(...points.map((point) => point.value), 1);
-  const width = 960;
-  const height = 144;
-  const left = 16;
-  const right = width - 16;
-  const top = 12;
-  const bottom = height - 12;
-  const drawableW = right - left;
-  const drawableH = bottom - top;
-
-  const linePoints = points.map((point, index) => {
-    const x = left + (index / Math.max(1, points.length - 1)) * drawableW;
-    const y = bottom - (Math.max(0, point.value) / max) * drawableH;
-    return { ...point, x, y };
-  });
-
-  return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[680px]">
-        <div className="h-36">
-          <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full">
-            <polyline
-              fill="none"
-              stroke="var(--custom-color)"
-              strokeWidth="2.5"
-              points={linePoints.map((point) => `${point.x},${point.y}`).join(" ")}
-            />
-            {linePoints.map((point) => (
-              <circle key={point.label} cx={point.x} cy={point.y} r="3.8" fill="var(--custom-color)" />
-            ))}
-          </svg>
-        </div>
-        <div className="mt-2 grid grid-cols-6 text-xs text-muted">
-          {points.filter((_, index) => index % Math.ceil(points.length / 6) === 0).map((point) => (
-            <span key={point.label}>{point.label}</span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function AnalyticsView() {
   const { weekStart, dailyTotals, hourTotals, prevWeek, nextWeek } = useAnalyticsWeek();
   const history = useAnalyticsHistory();
@@ -100,7 +57,6 @@ export function AnalyticsView() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("bar");
   const [chartTooltip, setChartTooltip] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
-  const [ganttDay, setGanttDay] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedHeatCell, setSelectedHeatCell] = useState<{ dateKey: string; value: number } | null>(null);
 
   const prefsRef = useRef<HTMLDivElement | null>(null);
@@ -115,14 +71,11 @@ export function AnalyticsView() {
   const linePointsScaled = useMemo(() => {
     const width = 960;
     const height = 176;
-    const left = 8;
-    const right = width - 8;
     const top = 12;
     const bottom = height - 12;
-    const drawableW = right - left;
     const drawableH = bottom - top;
     return hourTotals.map((sec, hour) => {
-      const x = left + ((hour + 0.5) / 24) * drawableW;
+      const x = ((hour + 0.5) / 24) * width;
       const y = bottom - (Math.min(Math.max(0, sec), lineScaleMax) / lineScaleMax) * drawableH;
       return { x, y, hour, sec };
     });
@@ -133,22 +86,10 @@ export function AnalyticsView() {
     return history.dailyFocus.reduce((sum, point) => sum + point.value, 0) / history.dailyFocus.length;
   }, [history.dailyFocus]);
 
-  const projectMax = useMemo(
-    () => Math.max(...history.projectBreakdown.map((project) => project.value), 1),
-    [history.projectBreakdown],
-  );
-
-  const ganttSessions = useMemo(
-    () => history.sessionsForGantt.filter((session) => session.dayKey === ganttDay),
-    [history.sessionsForGantt, ganttDay],
-  );
-
   const maxYearHeat = useMemo(() => {
-    const values = history.yearHeatmap.months.flatMap((month) =>
-      month.weeks.flat().filter((cell) => cell.inMonth).map((cell) => cell.value),
-    );
+    const values = history.yearHeatmap.weeks.flat().filter((cell) => cell.inRange).map((cell) => cell.value);
     return Math.max(...values, 1);
-  }, [history.yearHeatmap.months]);
+  }, [history.yearHeatmap.weeks]);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -279,7 +220,7 @@ export function AnalyticsView() {
               ) : (
                 <div className="h-52">
                   <svg viewBox="0 0 960 176" className="h-full w-full">
-                    <line x1="8" y1="164" x2="952" y2="164" stroke="var(--todo-border-color)" strokeWidth="1" />
+                    <line x1="0" y1="164" x2="960" y2="164" stroke="var(--todo-border-color)" strokeWidth="1" />
                     <polyline
                       fill="none"
                       stroke="var(--custom-color)"
@@ -329,18 +270,17 @@ export function AnalyticsView() {
         <section className="mt-4 rounded border border-theme surface p-3">
           <h2 className="text-sm font-semibold">Focus heat map</h2>
           <div className="mt-3 overflow-x-auto">
-            <div className="inline-block" style={{ minWidth: `max(100%, ${history.yearHeatmap.months.reduce((sum, month) => sum + month.weeks.length, 0) * 13 + 200}px)` }}>
+            <div className="inline-block" style={{ minWidth: `max(100%, ${history.yearHeatmap.weeks.length * 13 + 120}px)` }}>
               <div className="mb-1 flex items-end gap-2">
                 <div className="w-8 shrink-0" />
-                <div className="flex gap-2">
-                  {history.yearHeatmap.months.map((month) => (
-                    <div
-                      key={month.label}
-                      className="text-[10px] font-medium text-muted"
-                      style={{ width: `${month.weeks.length * 0.72 + (month.weeks.length - 1) * 0.25}rem` }}
-                    >
-                      <div className="mb-1">{month.label}</div>
-                    </div>
+                <div
+                  className="grid gap-1 text-[10px] font-medium text-muted"
+                  style={{ gridTemplateColumns: `repeat(${history.yearHeatmap.weeks.length}, 0.72rem)` }}
+                >
+                  {history.yearHeatmap.monthTicks.map((month) => (
+                    <span key={`${month.label}-${month.weekIndex}`} style={{ gridColumnStart: month.weekIndex + 1 }}>
+                      {month.label}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -349,36 +289,31 @@ export function AnalyticsView() {
                 {weekdayLabels.map((weekday, dayIndex) => (
                   <div key={weekday} className="flex items-center gap-2">
                     <span className="w-8 shrink-0 text-xs text-muted">{weekday}</span>
-                    <div className="flex gap-2">
-                      {history.yearHeatmap.months.map((month) => (
-                        <div
-                          key={`${month.label}-${dayIndex}`}
-                          className="grid gap-1"
-                          style={{ gridTemplateColumns: `repeat(${month.weeks.length}, 0.72rem)` }}
-                        >
-                          {month.weeks.map((week, weekIndex) => {
-                            const cell = week[dayIndex];
-                            const ratio = maxYearHeat > 0 ? cell.value / maxYearHeat : 0;
-                            const mixPercent = Math.round(10 + ratio * 82);
-                            const isSelected = selectedHeatCell?.dateKey === cell.dateKey;
-                            return (
-                              <button
-                                key={`${month.month}-${weekIndex}-${dayIndex}`}
-                                type="button"
-                                className={`h-3 w-3 rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-offset-1 ring-offset-transparent ring-[var(--custom-color)]" : ""}`}
-                                style={{
-                                  backgroundColor: cell.inMonth
-                                    ? `color-mix(in oklab, var(--custom-color) ${mixPercent}%, var(--app-background))`
-                                    : "var(--ui-button-bg-alt)",
-                                  opacity: cell.inMonth ? 1 : 0.38,
-                                }}
-                                onClick={() => setSelectedHeatCell({ dateKey: cell.dateKey, value: cell.value })}
-                                aria-label={`${cell.dateKey}: ${formatSec(cell.value)}`}
-                              />
-                            );
-                          })}
-                        </div>
-                      ))}
+                    <div
+                      className="grid gap-1"
+                      style={{ gridTemplateColumns: `repeat(${history.yearHeatmap.weeks.length}, 0.72rem)` }}
+                    >
+                      {history.yearHeatmap.weeks.map((week, weekIndex) => {
+                        const cell = week[dayIndex];
+                        const ratio = maxYearHeat > 0 ? cell.value / maxYearHeat : 0;
+                        const mixPercent = Math.round(10 + ratio * 82);
+                        const isSelected = selectedHeatCell?.dateKey === cell.dateKey;
+                        return (
+                          <button
+                            key={`${weekIndex}-${dayIndex}`}
+                            type="button"
+                            className={`h-3 w-3 rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-offset-1 ring-offset-transparent ring-[var(--custom-color)]" : ""}`}
+                            style={{
+                              backgroundColor: cell.inRange
+                                ? `color-mix(in oklab, var(--custom-color) ${mixPercent}%, var(--app-background))`
+                                : "var(--ui-button-bg-alt)",
+                              opacity: cell.inRange ? 1 : 0.35,
+                            }}
+                            onClick={() => setSelectedHeatCell({ dateKey: cell.dateKey, value: cell.value })}
+                            aria-label={`${cell.dateKey}: ${formatSec(cell.value)}`}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -431,121 +366,6 @@ export function AnalyticsView() {
             </div>
           </div>
         </section>
-
-        <section className="mt-4 rounded border border-theme surface p-3">
-          <h2 className="text-sm font-semibold">Work-time analysis & distribution</h2>
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            <div className="rounded border border-theme p-2">
-              <p className="mb-2 text-xs font-semibold uppercase text-muted">Project time ratio / breakdown</p>
-              <div className="space-y-2">
-                {history.projectBreakdown.slice(0, 8).map((project) => (
-                  <div key={project.label}>
-                    <div className="mb-1 flex items-center justify-between text-xs">
-                      <span>{project.label}</span>
-                      <span>{formatSec(project.value)}</span>
-                    </div>
-                    <div className="surface-soft h-2 overflow-hidden rounded">
-                      <div className="h-full rounded bg-accent" style={{ width: `${toPercent(project.value, projectMax)}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="rounded border border-theme p-2">
-              <p className="mb-2 text-xs font-semibold uppercase text-muted">Time-distribution report</p>
-              <div className="space-y-2">
-                {history.timeDistribution.map((bucket) => (
-                  <div key={bucket.label}>
-                    <div className="mb-1 flex items-center justify-between text-xs">
-                      <span>{bucket.label}</span>
-                      <span>{formatSec(bucket.value)}</span>
-                    </div>
-                    <div className="surface-soft h-2 overflow-hidden rounded">
-                      <div className="h-full rounded bg-accent" style={{ width: `${toPercent(bucket.value, history.totalFocusSec || 1)}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-4 rounded border border-theme surface p-3">
-          <h2 className="text-sm font-semibold">Task-completion analysis</h2>
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            <div className="rounded border border-theme p-2">
-              <p className="mb-2 text-xs font-semibold uppercase text-muted">Completed to-do statistics</p>
-              <div className="space-y-1 text-sm">
-                <p>Total tasks: {history.completionSummary.total}</p>
-                <p>Completed: {history.completionSummary.done}</p>
-                <p>Open: {history.completionSummary.open}</p>
-              </div>
-            </div>
-            <div className="rounded border border-theme p-2">
-              <p className="mb-2 text-xs font-semibold uppercase text-muted">Trend chart for completed to-dos (30d)</p>
-              <MiniLineChart points={history.completionTrend} />
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-4 rounded border border-theme surface p-3">
-          <h2 className="text-sm font-semibold">Trend chart for focus time (30d)</h2>
-          <div className="mt-2">
-            <MiniLineChart points={history.dailyFocus} />
-          </div>
-        </section>
-
-        <section className="mt-4 rounded border border-theme surface p-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">Gantt chart of focus time</h2>
-            <input
-              type="date"
-              value={ganttDay}
-              onChange={(event) => setGanttDay(event.target.value)}
-              className="rounded border border-theme surface px-2 py-1 text-sm"
-            />
-          </div>
-          <div className="mb-2 grid grid-cols-5 text-xs text-muted">
-            <span>00:00</span>
-            <span className="text-center">06:00</span>
-            <span className="text-center">12:00</span>
-            <span className="text-center">18:00</span>
-            <span className="text-right">24:00</span>
-          </div>
-          {ganttSessions.length ? (
-            <div className="space-y-2">
-              {ganttSessions.map((session) => {
-                const startMinutes = session.startAt.getHours() * 60 + session.startAt.getMinutes();
-                const sameDay = format(session.endAt, "yyyy-MM-dd") === format(session.startAt, "yyyy-MM-dd");
-                const endMinutesRaw = session.endAt.getHours() * 60 + session.endAt.getMinutes();
-                const endMinutes = sameDay ? endMinutesRaw : 1440;
-                const leftPct = (startMinutes / 1440) * 100;
-                const widthPct = Math.max(0.8, ((endMinutes - startMinutes) / 1440) * 100);
-                const task = session.taskId ? history.tasksById.get(session.taskId) : undefined;
-                const label = task?.title ?? "Unlinked focus session";
-
-                return (
-                  <div key={session.id} className="rounded border border-theme p-2">
-                    <div className="mb-1 flex items-center justify-between text-xs">
-                      <span className="truncate">{label}</span>
-                      <span>{formatSec(session.durationSec)}</span>
-                    </div>
-                    <div className="relative h-4 rounded border border-theme surface-soft">
-                      <div
-                        className="absolute top-0 h-full rounded bg-accent"
-                        style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-muted">No focus sessions found for this day.</p>
-          )}
-        </section>
-
-        {!history.ready ? <p className="mt-4 text-sm text-muted">Loading historical analytics...</p> : null}
       </div>
     </main>
   );
