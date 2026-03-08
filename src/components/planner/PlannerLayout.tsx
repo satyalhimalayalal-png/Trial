@@ -492,7 +492,7 @@ export function TodayLayout({ tasks }: { tasks: Task[] }) {
       preferences={preferences}
       onPatchPreferences={patchPreferences}
     >
-      <div className="h-full overflow-y-auto px-4 py-2">
+      <div className="px-4 py-2">
         <PlannerDndProvider
           tasks={dayTasks}
           onDragStartTask={setDraggingTaskId}
@@ -548,7 +548,7 @@ export function FocusWindowLayout({ tasks }: { tasks: Task[] }) {
       preferences={preferences}
       onPatchPreferences={patchPreferences}
     >
-      <div className="h-full overflow-y-auto px-4 py-2">
+      <div className="px-4 py-2">
         <PlannerDndProvider tasks={dayTasks} onDragStartTask={setDraggingTaskId} onMoveTask={taskActions.moveTask} allowCrossTypeMoves>
           <div className="mx-auto max-w-3xl">
             <header className="mb-2 flex items-center justify-between">
