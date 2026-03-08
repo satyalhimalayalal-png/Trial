@@ -48,6 +48,7 @@
   --todo-header-text-color: #141414;
   --todo-border-color: #edeef0;
   --task-grid-line-color: #d9dde2;
+  --checklist-background: #7a8291;
   --todo-checkbox: color-mix(in oklab, var(--custom-color) 30%, transparent);
   --todo-checkbox-done-color: #999;
   --todo-button-bg: #f7f8fa;
@@ -101,6 +102,7 @@
   --todo-header-text-color: #fff;
   --todo-border-color: #1b1c20;
   --task-grid-line-color: #2a2f36;
+  --checklist-background: #171a20;
   --todo-checkbox: color-mix(in oklab, var(--custom-color) 50%, transparent);
   --todo-checkbox-done-color: #484848;
   --todo-button-bg: #484848;
@@ -491,11 +493,20 @@ textarea {
 }
 
 .lines-backdrop {
+  background-color: var(--checklist-background);
   background-image: repeating-linear-gradient(
     to bottom,
     transparent calc(var(--line-row-height) - 1px),
     var(--task-grid-line-color) var(--line-row-height)
   );
+}
+
+.lines-backdrop-off {
+  background-image: none;
+}
+
+.checklist-pane {
+  background-color: var(--checklist-background) !important;
 }
 
 .planner-canvas {

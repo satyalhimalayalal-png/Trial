@@ -30,7 +30,7 @@ const DEFAULT_CONFIG: PomodoroConfig = {
 
 export function FocusTimer() {
   const timer = useFocusTimer();
-  const [mode, setMode] = useState<TimerMode>("stopwatch");
+  const [mode, setMode] = useState<TimerMode>("pomodoro");
   const [phase, setPhase] = useState<PomodoroPhase>("focus");
   const [config, setConfig] = useState<PomodoroConfig>(DEFAULT_CONFIG);
   const [draftFocus, setDraftFocus] = useState(DEFAULT_CONFIG.focusMinutes);
@@ -54,6 +54,10 @@ export function FocusTimer() {
   }, [phaseDurationSec, remainingSec]);
   const ringFillColor = phase === "focus" ? "#cf2d2d" : "#2f72ea";
   const ringTrackColor = phase === "focus" ? "#4c1f1f" : "#1f3457";
+
+  useEffect(() => {
+    setMode("pomodoro");
+  }, []);
 
   useEffect(() => {
     if (typeof Audio === "undefined") return;

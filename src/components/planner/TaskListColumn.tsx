@@ -82,7 +82,7 @@ export function TaskListColumn({
   };
 
   return (
-    <section className={showLines ? "flex h-full min-h-0 flex-col border-r border-theme pr-2" : "flex h-full min-h-0 flex-col pr-2"}>
+    <section className={showLines ? "checklist-pane flex h-full min-h-0 flex-col border-r border-theme pr-2" : "checklist-pane flex h-full min-h-0 flex-col pr-2"}>
       <header className={variant === "day" ? "mb-2 shrink-0 pb-1 pt-5" : "mb-2 shrink-0 pb-1 pt-4"}>
         <div className="flex items-start justify-between gap-1">
           <div className={variant === "day" ? "w-full text-center" : "min-w-0 flex-1 text-center"}>
@@ -99,7 +99,14 @@ export function TaskListColumn({
         </div>
       </header>
 
-      <div className={showLines ? "min-h-[220px] min-w-0 flex-1 overflow-y-auto lines-backdrop" : "min-h-[220px] min-w-0 flex-1 overflow-y-auto"} onClick={handleLinesClick}>
+      <div
+        className={
+          showLines
+            ? "checklist-pane min-h-[220px] min-w-0 flex-1 overflow-y-auto lines-backdrop"
+            : "checklist-pane min-h-[220px] min-w-0 flex-1 overflow-y-auto lines-backdrop lines-backdrop-off"
+        }
+        onClick={handleLinesClick}
+      >
         <SortableTaskContext container={container} tasks={tasks}>
           {tasks.map((task) => (
             <TaskItem
