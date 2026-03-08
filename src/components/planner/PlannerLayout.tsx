@@ -160,7 +160,7 @@ function PlannerChrome({
         {prefsOpen ? <PreferencesSidebar preferences={preferences} onPatch={onPatchPreferences} /> : null}
       </div>
 
-      <div className="planner-main-shell tab-view-enter">{children}</div>
+      <div className="planner-main-shell">{children}</div>
     </div>
   );
 }

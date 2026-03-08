@@ -162,14 +162,14 @@ export function FocusTimer() {
         <div className="inline-flex overflow-hidden rounded border border-theme">
           <button
             type="button"
-            className={mode === "stopwatch" ? "bg-accent px-2 py-1 text-xs text-white" : "surface px-2 py-1 text-xs"}
+            className={mode === "stopwatch" ? "focus-control-btn bg-accent px-2 py-1 text-xs text-white" : "focus-control-btn focus-control-btn-subtle surface px-2 py-1 text-xs"}
             onClick={() => setMode("stopwatch")}
           >
             Stopwatch
           </button>
           <button
             type="button"
-            className={mode === "pomodoro" ? "bg-accent px-2 py-1 text-xs text-white" : "surface px-2 py-1 text-xs"}
+            className={mode === "pomodoro" ? "focus-control-btn bg-accent px-2 py-1 text-xs text-white" : "focus-control-btn focus-control-btn-subtle surface px-2 py-1 text-xs"}
             onClick={() => setMode("pomodoro")}
           >
             Pomodoro
@@ -209,21 +209,21 @@ export function FocusTimer() {
           </div>
           <div className="flex items-center justify-center gap-2">
             {pomodoroRunning ? (
-              <button className="rounded border border-theme px-3 py-1" onClick={pausePomodoro}>
+              <button className="focus-control-btn rounded border border-theme px-3 py-1" onClick={pausePomodoro}>
                 Pause
               </button>
             ) : (
-              <button className="rounded border border-theme px-3 py-1" onClick={startPomodoro}>
+              <button className="focus-control-btn rounded border border-theme px-3 py-1" onClick={startPomodoro}>
                 Start
               </button>
             )}
-            <button className="rounded border border-theme px-3 py-1" onClick={resetPomodoro}>
+            <button className="focus-control-btn rounded border border-theme px-3 py-1" onClick={resetPomodoro}>
               Reset
             </button>
           </div>
           <div className="flex items-center justify-center gap-2">
             <button
-              className="rounded border border-theme px-3 py-1 text-sm"
+              className="focus-control-btn rounded border border-theme px-3 py-1 text-sm"
               onClick={() => jumpToPhase(phase === "focus" ? "break" : "focus")}
             >
               {phase === "focus" ? "Skip work" : "Skip break"}
@@ -262,7 +262,7 @@ export function FocusTimer() {
                   onChange={(event) => setDraftBreak(Number(event.target.value))}
                 />
               </label>
-              <button className="rounded border border-theme px-2 py-1" onClick={applyConfig}>
+              <button className="focus-control-btn rounded border border-theme px-2 py-1" onClick={applyConfig}>
                 Apply
               </button>
             </div>

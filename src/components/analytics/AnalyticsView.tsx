@@ -68,8 +68,10 @@ export function AnalyticsView() {
 
   const prefsRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
+  const heatmapScrollRef = useRef<HTMLDivElement | null>(null);
   const tooltipTimerRef = useRef<number | null>(null);
   const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const currentYearLabel = String(new Date().getFullYear());
   const lineScaleMax = useMemo(() => {
     const sorted = [...hourTotals].sort((a, b) => a - b);
     const p90 = sorted[Math.floor(sorted.length * 0.9)] ?? 1;
@@ -118,6 +120,15 @@ export function AnalyticsView() {
       if (tooltipTimerRef.current) window.clearTimeout(tooltipTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!heatmapScrollRef.current) return;
+    const tick = history.yearHeatmap.yearTicks.find((item) => item.label === currentYearLabel);
+    if (!tick) return;
+    const cellWidth = 0.72 * 16 + 4;
+    const left = tick.weekIndex * cellWidth - 64;
+    heatmapScrollRef.current.scrollLeft = Math.max(0, left);
+  }, [history.yearHeatmap.yearTicks, currentYearLabel]);
 
   const queueTooltip = (target: Element, hour: number, sec: number) => {
     if (!chartRef.current) return;
@@ -282,7 +293,7 @@ export function AnalyticsView() {
 
         <section className="mt-4 rounded border border-theme surface p-3">
           <h2 className="text-sm font-semibold">Focus heat map</h2>
-          <div className="mt-3 overflow-x-auto">
+          <div ref={heatmapScrollRef} className="mt-3 overflow-x-auto">
             <div className="inline-block" style={{ minWidth: `max(100%, ${history.yearHeatmap.weeks.length * 13 + 120}px)` }}>
               <div className="mb-1 flex items-end gap-2">
                 <div className="w-8 shrink-0" />
@@ -322,7 +333,15 @@ export function AnalyticsView() {
                       {history.yearHeatmap.weeks.map((week, weekIndex) => {
                         const cell = week[dayIndex];
                         const ratio = maxYearHeat > 0 ? cell.value / maxYearHeat : 0;
-                        const mixPercent = Math.round(18 + ratio * 62);
+                        const sec = cell.value;
+                        let redMix = 0;
+                        if (sec >= 4 * 3600) redMix = 74;
+                        else if (sec >= 2 * 3600) redMix = 60;
+                        else if (sec >= 60 * 60) redMix = 46;
+                        else if (sec >= 30 * 60) redMix = 33;
+                        else if (sec >= 10 * 60) redMix = 22;
+                        else if (sec > 0) redMix = 14;
+                        const mixPercent = Math.max(redMix, Math.round(10 + ratio * 64));
                         const isSelected = selectedHeatCell?.dateKey === cell.dateKey;
                         return (
                           <button
@@ -331,7 +350,9 @@ export function AnalyticsView() {
                             className={`h-3 w-3 rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-offset-1 ring-offset-transparent ring-[var(--custom-color)]" : ""}`}
                             style={{
                               backgroundColor: cell.inRange
-                                ? `color-mix(in oklab, #8d939b ${mixPercent}%, var(--app-background))`
+                                ? sec > 0
+                                  ? `color-mix(in oklab, #cf2d2d ${mixPercent}%, var(--app-background))`
+                                  : "color-mix(in oklab, #8f959d 34%, var(--app-background))"
                                 : "var(--ui-button-bg-alt)",
                               opacity: cell.inRange ? 1 : 0.35,
                               boxShadow: yearBreakWeeks.has(weekIndex) ? "inset 1px 0 0 color-mix(in oklab, #9aa0a8 65%, transparent)" : undefined,
