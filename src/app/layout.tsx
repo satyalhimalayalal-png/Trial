@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeBridge } from "@/components/app/ThemeBridge";
 
 export const metadata: Metadata = {
   title: "Teux Planner",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ThemeBridge />
+        {children}
+      </body>
     </html>
   );
 }

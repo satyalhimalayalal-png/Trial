@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { startFocusSession, stopFocusSession } from "@/lib/db/repos/focusRepo";
 import { useFocusStore } from "@/state/useFocusStore";
 
@@ -24,19 +24,26 @@ export function useFocusTimer() {
     return Math.max(0, Math.floor((nowMs - new Date(activeStartedAt).getTime()) / 1000));
   }, [activeStartedAt, nowMs]);
 
-  return {
-    active: Boolean(activeSessionId && activeStartedAt),
-    elapsedSec,
-    start: async (taskId?: string) => {
+  const start = useCallback(
+    async (taskId?: string) => {
       if (activeSessionId) return;
       const session = await startFocusSession(taskId);
       setNowMs(new Date(session.startAt).getTime());
       setActive(session.id, session.startAt, taskId);
     },
-    stop: async () => {
-      if (!activeSessionId) return;
-      await stopFocusSession(activeSessionId);
-      clearActive();
-    },
+    [activeSessionId, setActive],
+  );
+
+  const stop = useCallback(async () => {
+    if (!activeSessionId) return;
+    await stopFocusSession(activeSessionId);
+    clearActive();
+  }, [activeSessionId, clearActive]);
+
+  return {
+    active: Boolean(activeSessionId && activeStartedAt),
+    elapsedSec,
+    start,
+    stop,
   };
 }
