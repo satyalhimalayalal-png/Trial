@@ -100,7 +100,7 @@ export function FocusTimer() {
     const context = new AudioContextImpl();
     const now = context.currentTime;
 
-    const patterns: Record<Exclude<AlertTone, "track">, number[]> = {
+    const patterns: Record<Exclude<AlertTone, "track" | "uploaded-file">, number[]> = {
       "synth-chime": [784, 988, 1175, 1568],
       "synth-bell": [523, 659, 784, 988],
       "synth-pulse": [740, 740, 740, 988],
