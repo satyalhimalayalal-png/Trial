@@ -130,7 +130,6 @@ export function PreferencesSidebar({ preferences, onPatch }: PreferencesSidebarP
       </div>
 
       <ToggleRow label="Show completed" checked={preferences.showCompleted} onChange={(showCompleted) => void onPatch({ showCompleted })} />
-      <ToggleRow label="Show lines" checked={preferences.showLines} onChange={(showLines) => void onPatch({ showLines })} />
       <ToggleRow label="Celebrations" checked={preferences.celebrations} onChange={(celebrations) => void onPatch({ celebrations })} />
     </aside>
   );

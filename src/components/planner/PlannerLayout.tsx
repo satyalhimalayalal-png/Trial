@@ -373,7 +373,7 @@ export function PlannerLayout({ lists, tasks, showBottomLists = true }: PlannerL
               editingTaskId={editingTaskId}
               accentColor={preferences.accentColor}
               bulletStyle={preferences.bulletStyle}
-              showLines={preferences.showLines}
+              showLines
               motionDirection={weekMotion}
               motionKey={weekMotionKey}
               onSetEditingTaskId={setEditingTaskId}
@@ -402,7 +402,7 @@ export function PlannerLayout({ lists, tasks, showBottomLists = true }: PlannerL
                   editingTaskId={editingTaskId}
                   accentColor={preferences.accentColor}
                   bulletStyle={preferences.bulletStyle}
-                  showLines={preferences.showLines}
+                  showLines
                   onSetEditingTaskId={setEditingTaskId}
                   onAdd={taskActions.addTask}
                   onEdit={taskActions.editTask}
@@ -509,7 +509,7 @@ export function TodayLayout({ tasks }: { tasks: Task[] }) {
               editingTaskId={editingTaskId}
               accentColor={preferences.accentColor}
               bulletStyle={preferences.bulletStyle}
-              showLines={preferences.showLines}
+              showLines
               onSetEditingTaskId={setEditingTaskId}
               onAdd={taskActions.addTask}
               onEdit={taskActions.editTask}
@@ -575,7 +575,7 @@ export function FocusWindowLayout({ tasks }: { tasks: Task[] }) {
               editingTaskId={editingTaskId}
               accentColor={preferences.accentColor}
               bulletStyle={preferences.bulletStyle}
-              showLines={preferences.showLines}
+              showLines
               onSetEditingTaskId={setEditingTaskId}
               onAdd={taskActions.addTask}
               onEdit={taskActions.editTask}
