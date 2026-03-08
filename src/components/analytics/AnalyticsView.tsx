@@ -25,6 +25,8 @@ type Point = { label: string; value: number };
 function MiniBarChart({ points }: { points: Point[] }) {
   const max = Math.max(...points.map((point) => point.value), 1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<HTMLDivElement | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -33,17 +35,38 @@ function MiniBarChart({ points }: { points: Point[] }) {
 
   return (
     <div ref={scrollRef} className="overflow-x-auto">
-      <div className="min-w-[680px]">
+      <div ref={chartRef} className="relative min-w-[680px]">
         <div className="flex h-36 items-end gap-1">
           {points.map((point) => (
             <div key={point.label} className="flex min-w-0 flex-1 flex-col items-center justify-end">
               <div
                 className="w-full rounded-t bg-accent transition-[height] duration-300"
                 style={{ height: `${Math.max(3, Math.round(toPercent(point.value, max) * 1.35))}px` }}
+                onMouseEnter={(event) => {
+                  if (!chartRef.current) return;
+                  const containerRect = chartRef.current.getBoundingClientRect();
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setTooltip({
+                    x: rect.left + rect.width / 2 - containerRect.left,
+                    y: rect.top - containerRect.top,
+                    label: point.label,
+                    value: formatSec(point.value),
+                  });
+                }}
+                onMouseLeave={() => setTooltip(null)}
               />
             </div>
           ))}
         </div>
+        {tooltip ? (
+          <div
+            className="pointer-events-none absolute rounded border border-theme surface px-2 py-1 text-xs shadow"
+            style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -120%)" }}
+          >
+            <div className="font-semibold">{tooltip.label}</div>
+            <div className="text-muted">{tooltip.value}</div>
+          </div>
+        ) : null}
         <div className="mt-2 grid grid-cols-6 text-xs text-muted">
           {points.filter((_, index) => index % Math.ceil(points.length / 6) === 0).map((point) => (
             <span key={point.label}>{point.label}</span>
@@ -250,17 +273,25 @@ export function AnalyticsView() {
                       points={linePointsScaled.map((point) => `${point.x},${point.y}`).join(" ")}
                     />
                     {linePointsScaled.map((point) => (
-                      <circle
-                        key={point.hour}
-                        cx={point.x}
-                        cy={point.y}
-                        r="4.8"
-                        fill="var(--app-background)"
-                        stroke="var(--custom-color)"
-                        strokeWidth="2"
-                        onMouseEnter={(event) => queueTooltip(event.currentTarget, point.hour, point.sec)}
-                        onMouseLeave={hideTooltip}
-                      />
+                      <g key={point.hour}>
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          r="9"
+                          fill="transparent"
+                          onMouseEnter={(event) => queueTooltip(event.currentTarget, point.hour, point.sec)}
+                          onMouseLeave={hideTooltip}
+                        />
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          r="4.8"
+                          fill="var(--app-background)"
+                          stroke="var(--custom-color)"
+                          strokeWidth="2"
+                          pointerEvents="none"
+                        />
+                      </g>
                     ))}
                   </svg>
                 </div>

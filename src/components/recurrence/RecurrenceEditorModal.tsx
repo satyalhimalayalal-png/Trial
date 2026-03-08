@@ -149,10 +149,19 @@ export function RecurrenceEditorModal({
                           : [...prev, option.value],
                       );
                     }}
-                    className={
+                    className="rounded border px-2 py-1 text-xs"
+                    style={
                       selected
-                        ? "rounded border btn-accent bg-accent px-2 py-1 text-xs text-white"
-                        : "rounded border border-theme px-2 py-1 text-xs"
+                        ? {
+                            borderColor: "var(--custom-color)",
+                            backgroundColor: "color-mix(in oklab, var(--custom-color) 18%, var(--app-background))",
+                            color: "var(--todo-text-color)",
+                          }
+                        : {
+                            borderColor: "var(--todo-border-color)",
+                            backgroundColor: "var(--app-background)",
+                            color: "var(--todo-text-color)",
+                          }
                     }
                   >
                     {option.label}

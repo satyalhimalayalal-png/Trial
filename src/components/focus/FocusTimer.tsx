@@ -209,21 +209,21 @@ export function FocusTimer() {
           </div>
           <div className="flex items-center justify-center gap-2">
             {pomodoroRunning ? (
-              <button className="focus-control-btn rounded border border-theme px-3 py-1" onClick={pausePomodoro}>
+              <button className="focus-control-btn focus-control-btn-subtle rounded border border-theme px-3 py-1" onClick={pausePomodoro}>
                 Pause
               </button>
             ) : (
-              <button className="focus-control-btn rounded border border-theme px-3 py-1" onClick={startPomodoro}>
+              <button className="focus-control-btn focus-control-btn-subtle rounded border border-theme px-3 py-1" onClick={startPomodoro}>
                 Start
               </button>
             )}
-            <button className="focus-control-btn rounded border border-theme px-3 py-1" onClick={resetPomodoro}>
+            <button className="focus-control-btn focus-control-btn-subtle rounded border border-theme px-3 py-1" onClick={resetPomodoro}>
               Reset
             </button>
           </div>
           <div className="flex items-center justify-center gap-2">
             <button
-              className="focus-control-btn rounded border border-theme px-3 py-1 text-sm"
+              className="focus-control-btn focus-control-btn-subtle rounded border border-theme px-3 py-1 text-sm"
               onClick={() => jumpToPhase(phase === "focus" ? "break" : "focus")}
             >
               {phase === "focus" ? "Skip work" : "Skip break"}
@@ -233,10 +233,10 @@ export function FocusTimer() {
             <p className="mb-2 text-xs uppercase text-muted">Presets</p>
             <div className="mb-3 flex flex-wrap gap-2">
               <button className="rounded border border-theme px-2 py-1 text-xs" onClick={() => applyPreset(25, 5)}>
-                25/5
+                25 | 5
               </button>
               <button className="rounded border border-theme px-2 py-1 text-xs" onClick={() => applyPreset(50, 10)}>
-                50/10
+                50 | 10
               </button>
             </div>
             <div className="flex flex-wrap items-end gap-2 text-xs">
@@ -262,7 +262,7 @@ export function FocusTimer() {
                   onChange={(event) => setDraftBreak(Number(event.target.value))}
                 />
               </label>
-              <button className="focus-control-btn rounded border border-theme px-2 py-1" onClick={applyConfig}>
+              <button className="focus-control-btn focus-control-btn-subtle rounded border border-theme px-2 py-1" onClick={applyConfig}>
                 Apply
               </button>
             </div>
