@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Focus Nexus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-one"></div>
+    <div class="bg-orb orb-two"></div>
+
+    <header class="topbar glass-panel">
+      <div class="brand-wrap">
+        <p class="date-range" id="dateRange">MAR 8 - MAR 8, 2026</p>
+        <h1 class="brand">FOCUS NEXUS</h1>
+      </div>
+      <div class="top-actions">
+        <button id="themeButton" class="icon-btn" aria-label="Toggle appearance panel">Appearance</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="left-col">
+        <article class="glass-panel timer-card">
+          <div class="section-head">
+            <h2>Pomodoro Ring</h2>
+            <p id="timerMode">Work session</p>
+          </div>
+
+          <div class="timer-shell">
+            <svg class="ring" viewBox="0 0 260 260" role="img" aria-label="Pomodoro timer">
+              <defs>
+                <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="var(--ring-start)" />
+                  <stop offset="100%" stop-color="var(--ring-end)" />
+                </linearGradient>
+              </defs>
+              <circle cx="130" cy="130" r="102" class="ring-bg"></circle>
+              <circle cx="130" cy="130" r="102" class="ring-fg" id="ringProgress"></circle>
+            </svg>
+            <div class="timer-content">
+              <p id="timeLabel">25:00</p>
+              <p class="timer-sub">session interval</p>
+              <div class="timer-buttons">
+                <button id="startPauseBtn" class="pill-btn primary">Start</button>
+                <button id="resetBtn" class="pill-btn">Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="preset-row">
+            <button class="chip" data-work="25" data-break="5">25/5</button>
+            <button class="chip" data-work="50" data-break="10">50/10</button>
+            <button class="chip" data-work="90" data-break="20">90/20</button>
+          </div>
+
+          <form id="timerConfig" class="timer-config">
+            <label>
+              Work
+              <input type="number" id="workInput" min="1" max="180" value="25" />
+            </label>
+            <label>
+              Break
+              <input type="number" id="breakInput" min="1" max="60" value="5" />
+            </label>
+            <label>
+              Long Break
+              <input type="number" id="longBreakInput" min="5" max="120" value="15" />
+            </label>
+            <label>
+              Long every N sessions
+              <input type="number" id="longEveryInput" min="2" max="10" value="4" />
+            </label>
+            <button class="pill-btn primary" type="submit">Apply</button>
+          </form>
+        </article>
+
+        <article class="glass-panel tasks-card">
+          <div class="section-head tasks-head">
+            <h2>Tasks</h2>
+            <div class="task-controls">
+              <input id="taskSearch" type="search" placeholder="Search tasks" />
+              <button id="addTaskBtn" class="pill-btn">+ Add</button>
+            </div>
+          </div>
+
+          <div id="quickAdd" class="quick-add hidden">
+            <input id="taskTitle" placeholder="Task title" />
+            <select id="taskDay"></select>
+            <button id="saveTaskBtn" class="pill-btn primary">Save</button>
+          </div>
+
+          <div class="board" id="taskBoard"></div>
+        </article>
+      </section>
+
+      <section class="right-col">
+        <article class="glass-panel stats-card">
+          <div class="section-head">
+            <h2>Yearly Focus Heatmap</h2>
+            <p>Intensity by day with weekday rows and month columns.</p>
+          </div>
+          <div class="heatmap-wrap">
+            <div class="month-row" id="monthRow"></div>
+            <div class="heat-grid-row">
+              <div class="weekday-col" id="weekdayCol"></div>
+              <div class="heat-grid" id="heatGrid"></div>
+            </div>
+          </div>
+          <p id="heatHint" class="hint">Click a day to view date and focus time.</p>
+        </article>
+
+        <article class="glass-panel weekly-card">
+          <div class="section-head">
+            <h2>Peak + Weekly Statistics</h2>
+            <p id="selectedDateLabel">No day selected</p>
+          </div>
+
+          <div class="sparkline" id="sparkline"></div>
+
+          <div class="weekday-pills" id="weekdayPills"></div>
+
+          <div class="donut-grid">
+            <div class="mini-donut-card">
+              <svg viewBox="0 0 140 140" class="mini-donut">
+                <circle cx="70" cy="70" r="46" class="donut-track"></circle>
+                <circle cx="70" cy="70" r="46" class="donut-value" id="completionRing"></circle>
+              </svg>
+              <div>
+                <p id="completionValue" class="stat-value">0%</p>
+                <p class="stat-label">Focus-day completion rate</p>
+              </div>
+            </div>
+
+            <div class="mini-donut-card">
+              <svg viewBox="0 0 140 140" class="mini-donut">
+                <circle cx="70" cy="70" r="46" class="donut-track"></circle>
+                <circle cx="70" cy="70" r="46" class="donut-value" id="peakRing"></circle>
+              </svg>
+              <div>
+                <p id="peakValue" class="stat-value">0%</p>
+                <p class="stat-label">Peak day concentration</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="week-logs" id="weekLogs"></div>
+
+          <div class="weekly-summary" id="weeklySummary"></div>
+        </article>
+      </section>
+    </main>
+
+    <aside id="appearancePanel" class="appearance glass-panel collapsed" aria-hidden="true">
+      <div class="section-head">
+        <h2>Preferences</h2>
+        <button id="closeAppearance" class="icon-btn" aria-label="Close appearance panel">Close</button>
+      </div>
+      <div class="pref-group">
+        <p>Theme</p>
+        <div class="theme-grid" id="themeGrid"></div>
+      </div>
+      <div class="pref-group">
+        <p>Density</p>
+        <div class="switch-row">
+          <button class="chip pref-chip" data-density="compact">Compact</button>
+          <button class="chip pref-chip" data-density="cozy">Cozy</button>
+        </div>
+      </div>
+      <div class="pref-group">
+        <p>Show completed</p>
+        <label class="toggle">
+          <input type="checkbox" id="showCompletedToggle" checked />
+          <span></span>
+        </label>
+      </div>
+    </aside>
+
+    <template id="taskItemTemplate">
+      <li class="task-item">
+        <label>
+          <input type="checkbox" class="task-check" />
+          <span class="task-text"></span>
+        </label>
+        <button class="task-delete" aria-label="Delete task">×</button>
+      </li>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
