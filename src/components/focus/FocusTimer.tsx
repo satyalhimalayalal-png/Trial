@@ -27,6 +27,41 @@ const DEFAULT_CONFIG: PomodoroConfig = {
   breakMinutes: 5,
 };
 
+function playPhaseEndRingtone() {
+  if (typeof window === "undefined") return;
+  const AudioContextImpl = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextImpl) return;
+
+  try {
+    const context = new AudioContextImpl();
+    const now = context.currentTime;
+    const pattern = [0, 0.22, 0.44, 0.66];
+    const freqs = [880, 1046, 1318, 1567];
+
+    pattern.forEach((offset, index) => {
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freqs[index % freqs.length];
+
+      gain.gain.setValueAtTime(0.0001, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.35, now + offset + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.17);
+
+      osc.connect(gain);
+      gain.connect(context.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.19);
+    });
+
+    window.setTimeout(() => {
+      void context.close();
+    }, 1400);
+  } catch {
+    // no-op: silently ignore audio playback failures
+  }
+}
+
 export function FocusTimer() {
   const timer = useFocusTimer();
   const [mode, setMode] = useState<TimerMode>("stopwatch");
@@ -76,6 +111,7 @@ export function FocusTimer() {
     if (mode !== "pomodoro" || !pomodoroRunning || remainingSec > 0) return;
 
     setPomodoroRunning(false);
+    playPhaseEndRingtone();
 
     if (phase === "focus") {
       if (pomodoroOwnsSession && timer.active) {
