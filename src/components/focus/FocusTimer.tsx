@@ -16,7 +16,7 @@ function formatDuration(totalSec: number): string {
 
 type TimerMode = "stopwatch" | "pomodoro";
 type PomodoroPhase = "focus" | "break";
-type AlertTone = "synth-chime" | "synth-bell" | "synth-pulse" | "track" | "uploaded-file";
+type AlertTone = "synth-chime" | "synth-bell" | "synth-pulse" | "default-track" | "uploaded-file";
 
 interface PomodoroConfig {
   focusMinutes: number;
@@ -41,6 +41,7 @@ export function FocusTimer() {
   const [alertTone, setAlertTone] = useState<AlertTone>("synth-chime");
   const [uploadedToneDataUrl, setUploadedToneDataUrl] = useState<string | null>(null);
   const [uploadedToneName, setUploadedToneName] = useState<string | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const defaultRingtoneRef = useRef<HTMLAudioElement | null>(null);
   const uploadedRingtoneRef = useRef<HTMLAudioElement | null>(null);
 
@@ -145,7 +146,7 @@ export function FocusTimer() {
   };
 
   const primeRingtone = () => {
-    if (alertTone !== "track" && alertTone !== "uploaded-file") return;
+    if (alertTone !== "default-track" && alertTone !== "uploaded-file") return;
     const audio = alertTone === "uploaded-file" ? uploadedRingtoneRef.current : defaultRingtoneRef.current;
     if (!audio) return;
     const previousVolume = audio.volume;
@@ -390,7 +391,7 @@ export function FocusTimer() {
                   <option value="synth-chime">Synth Chime</option>
                   <option value="synth-bell">Synth Bell</option>
                   <option value="synth-pulse">Synth Pulse</option>
-                  <option value="track">Built-in Track</option>
+                  <option value="default-track">Pomodoro End MP3</option>
                   {uploadedToneDataUrl ? <option value="uploaded-file">Your Upload</option> : null}
                 </select>
               </label>
@@ -403,11 +404,23 @@ export function FocusTimer() {
               </button>
             </div>
             <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-              <label className="rounded border border-theme px-2 py-1">
-                Upload sound
-                <input type="file" accept="audio/*" className="ml-2" onChange={onUploadTone} />
-              </label>
-              {uploadedToneName ? <span className="text-muted">{uploadedToneName}</span> : null}
+              <input
+                ref={uploadInputRef}
+                type="file"
+                accept="audio/*"
+                className="hidden"
+                onChange={onUploadTone}
+              />
+              <button
+                type="button"
+                className="rounded border border-theme px-2 py-1"
+                onClick={() => uploadInputRef.current?.click()}
+              >
+                Upload Sound
+              </button>
+              <span className="max-w-[220px] truncate rounded border border-theme px-2 py-1 text-muted">
+                {uploadedToneName ?? "No file selected"}
+              </span>
               {uploadedToneDataUrl ? (
                 <button type="button" className="rounded border border-theme px-2 py-1" onClick={clearUploadedTone}>
                   Remove
