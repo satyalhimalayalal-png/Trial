@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useFocusTimer } from "@/hooks/useFocusTimer";
 
 function formatDuration(totalSec: number): string {
@@ -162,7 +162,7 @@ export function FocusTimer() {
       });
   };
 
-  const onUploadTone = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onUploadTone = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
