@@ -143,7 +143,9 @@ export function useAnalyticsHistory() {
 
     const weeks: YearHeatCell[][] = [];
     const monthTicks: Array<{ label: string; weekIndex: number }> = [];
+    const yearTicks: Array<{ label: string; weekIndex: number }> = [];
     const seenMonth = new Set<string>();
+    const seenYear = new Set<number>();
 
     let cursor = new Date(gridStart);
     let weekIndex = 0;
@@ -165,6 +167,11 @@ export function useAnalyticsHistory() {
             seenMonth.add(monthKey);
             monthTicks.push({ label: format(date, "MMM"), weekIndex });
           }
+
+          if (date.getMonth() === 0 && !seenYear.has(date.getFullYear())) {
+            seenYear.add(date.getFullYear());
+            yearTicks.push({ label: String(date.getFullYear()), weekIndex });
+          }
         }
       }
       weeks.push(weekCells);
@@ -172,7 +179,7 @@ export function useAnalyticsHistory() {
       weekIndex += 1;
     }
 
-    return { weeks, monthTicks };
+    return { weeks, monthTicks, yearTicks };
   }, [dayTotalsMap]);
 
   const completedTasks = useMemo(() => (tasks ?? []).filter((task) => task.completed), [tasks]);

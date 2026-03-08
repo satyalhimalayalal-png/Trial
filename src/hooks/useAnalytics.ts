@@ -133,10 +133,35 @@ export function useAnalyticsWeek() {
     return hours;
   }, [withRealtime, weekStartMs, weekEndMs]);
 
+  const hourByDayTotals = useMemo(() => {
+    const grid = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+
+    for (const session of withRealtime) {
+      const durationSec = Math.max(0, session.durationSec ?? 0);
+      if (durationSec <= 0) continue;
+
+      const startMs = new Date(session.startAt).getTime();
+      const endMs = startMs + durationSec * 1000;
+      const clampedStart = Math.max(startMs, weekStartMs);
+      const clampedEnd = Math.min(endMs, weekEndMs);
+      if (clampedStart >= clampedEnd) continue;
+
+      forEachHourSlice(clampedStart, clampedEnd, (sliceStartMs, sliceEndMs) => {
+        const dayIndex = Math.floor((sliceStartMs - weekStartMs) / (24 * 60 * 60 * 1000));
+        if (dayIndex < 0 || dayIndex > 6) return;
+        const hour = new Date(sliceStartMs).getHours();
+        grid[dayIndex][hour] += (sliceEndMs - sliceStartMs) / 1000;
+      });
+    }
+
+    return grid;
+  }, [withRealtime, weekStartMs, weekEndMs]);
+
   return {
     weekStart,
     dailyTotals,
     hourTotals,
+    hourByDayTotals,
     prevWeek: () => setWeekStart((prev) => addWeeks(prev, -1)),
     nextWeek: () => setWeekStart((prev) => addWeeks(prev, 1)),
   };

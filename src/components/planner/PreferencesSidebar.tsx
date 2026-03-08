@@ -40,10 +40,19 @@ function ButtonGroup<T extends string | number>({
           key={String(option)}
           type="button"
           onClick={() => onChange(option)}
-          className={
+          className="rounded border px-2 py-1 text-xs font-semibold uppercase tracking-[0.06em]"
+          style={
             value === option
-              ? "rounded border btn-accent bg-accent px-2 py-1 text-xs font-semibold uppercase tracking-[0.06em] text-white"
-              : "rounded border border-theme surface px-2 py-1 text-xs font-semibold uppercase tracking-[0.06em]"
+              ? {
+                  borderColor: "var(--custom-color)",
+                  backgroundColor: "color-mix(in oklab, var(--custom-color) 18%, var(--app-background))",
+                  color: "var(--todo-text-color)",
+                }
+              : {
+                  borderColor: "var(--todo-border-color)",
+                  backgroundColor: "var(--app-background)",
+                  color: "var(--todo-text-color)",
+                }
           }
         >
           {String(option).toLowerCase()}
