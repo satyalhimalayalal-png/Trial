@@ -71,6 +71,23 @@ export function FocusTimer() {
     });
   };
 
+  const primeRingtone = () => {
+    const audio = ringtoneRef.current;
+    if (!audio) return;
+    const previousVolume = audio.volume;
+    audio.volume = 0;
+    audio.currentTime = 0;
+    void audio.play()
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = previousVolume;
+      })
+      .catch(() => {
+        audio.volume = previousVolume;
+      });
+  };
+
   useEffect(() => {
     if (mode !== "pomodoro") {
       setPomodoroRunning(false);
@@ -126,6 +143,7 @@ export function FocusTimer() {
   ]);
 
   const startPomodoro = () => {
+    primeRingtone();
     if (phase === "focus" && !timer.active) {
       void timer.start();
       setPomodoroOwnsSession(true);
