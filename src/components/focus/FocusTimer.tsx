@@ -16,7 +16,7 @@ function formatDuration(totalSec: number): string {
 
 type TimerMode = "stopwatch" | "pomodoro";
 type PomodoroPhase = "focus" | "break";
-type AlertTone = "synth-chime" | "synth-bell" | "synth-pulse" | "track";
+type AlertTone = "synth-chime" | "synth-bell" | "synth-pulse" | "track" | "uploaded-file";
 
 interface PomodoroConfig {
   focusMinutes: number;
@@ -39,7 +39,10 @@ export function FocusTimer() {
   const [pomodoroRunning, setPomodoroRunning] = useState(false);
   const [pomodoroOwnsSession, setPomodoroOwnsSession] = useState(false);
   const [alertTone, setAlertTone] = useState<AlertTone>("synth-chime");
-  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+  const [uploadedToneDataUrl, setUploadedToneDataUrl] = useState<string | null>(null);
+  const [uploadedToneName, setUploadedToneName] = useState<string | null>(null);
+  const defaultRingtoneRef = useRef<HTMLAudioElement | null>(null);
+  const uploadedRingtoneRef = useRef<HTMLAudioElement | null>(null);
 
   const phaseDurationSec = useMemo(() => {
     return (phase === "focus" ? config.focusMinutes : config.breakMinutes) * 60;
@@ -56,15 +59,38 @@ export function FocusTimer() {
     const audio = new Audio("/sounds/pomodoro-end.mp3");
     audio.preload = "auto";
     audio.volume = 1;
-    ringtoneRef.current = audio;
+    defaultRingtoneRef.current = audio;
 
     return () => {
       audio.pause();
-      ringtoneRef.current = null;
+      defaultRingtoneRef.current = null;
     };
   }, []);
 
-  const playSynthAlert = (tone: Exclude<AlertTone, "track">) => {
+  useEffect(() => {
+    const storedDataUrl = localStorage.getItem("pomodoro-uploaded-tone-data-url");
+    const storedName = localStorage.getItem("pomodoro-uploaded-tone-name");
+    if (storedDataUrl) setUploadedToneDataUrl(storedDataUrl);
+    if (storedName) setUploadedToneName(storedName);
+  }, []);
+
+  useEffect(() => {
+    if (typeof Audio === "undefined") return;
+    if (!uploadedToneDataUrl) {
+      uploadedRingtoneRef.current = null;
+      return;
+    }
+    const audio = new Audio(uploadedToneDataUrl);
+    audio.preload = "auto";
+    audio.volume = 1;
+    uploadedRingtoneRef.current = audio;
+    return () => {
+      audio.pause();
+      uploadedRingtoneRef.current = null;
+    };
+  }, [uploadedToneDataUrl]);
+
+  const playSynthAlert = (tone: Exclude<AlertTone, "track" | "uploaded-file">) => {
     if (typeof window === "undefined") return;
     const AudioContextImpl =
       window.AudioContext ||
@@ -104,12 +130,12 @@ export function FocusTimer() {
   };
 
   const playPhaseEndRingtone = () => {
-    if (alertTone !== "track") {
+    if (alertTone === "synth-chime" || alertTone === "synth-bell" || alertTone === "synth-pulse") {
       playSynthAlert(alertTone);
       return;
     }
 
-    const audio = ringtoneRef.current;
+    const audio = alertTone === "uploaded-file" ? uploadedRingtoneRef.current : defaultRingtoneRef.current;
     if (!audio) return;
     audio.pause();
     audio.currentTime = 0;
@@ -119,8 +145,8 @@ export function FocusTimer() {
   };
 
   const primeRingtone = () => {
-    if (alertTone !== "track") return;
-    const audio = ringtoneRef.current;
+    if (alertTone !== "track" && alertTone !== "uploaded-file") return;
+    const audio = alertTone === "uploaded-file" ? uploadedRingtoneRef.current : defaultRingtoneRef.current;
     if (!audio) return;
     const previousVolume = audio.volume;
     audio.volume = 0;
@@ -134,6 +160,30 @@ export function FocusTimer() {
       .catch(() => {
         audio.volume = previousVolume;
       });
+  };
+
+  const onUploadTone = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : null;
+      if (!dataUrl) return;
+      setUploadedToneDataUrl(dataUrl);
+      setUploadedToneName(file.name);
+      setAlertTone("uploaded-file");
+      localStorage.setItem("pomodoro-uploaded-tone-data-url", dataUrl);
+      localStorage.setItem("pomodoro-uploaded-tone-name", file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearUploadedTone = () => {
+    setUploadedToneDataUrl(null);
+    setUploadedToneName(null);
+    if (alertTone === "uploaded-file") setAlertTone("synth-chime");
+    localStorage.removeItem("pomodoro-uploaded-tone-data-url");
+    localStorage.removeItem("pomodoro-uploaded-tone-name");
   };
 
   useEffect(() => {
@@ -340,7 +390,8 @@ export function FocusTimer() {
                   <option value="synth-chime">Synth Chime</option>
                   <option value="synth-bell">Synth Bell</option>
                   <option value="synth-pulse">Synth Pulse</option>
-                  <option value="track">Uploaded Track</option>
+                  <option value="track">Built-in Track</option>
+                  {uploadedToneDataUrl ? <option value="uploaded-file">Your Upload</option> : null}
                 </select>
               </label>
               <button
@@ -350,6 +401,18 @@ export function FocusTimer() {
               >
                 Preview
               </button>
+            </div>
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+              <label className="rounded border border-theme px-2 py-1">
+                Upload sound
+                <input type="file" accept="audio/*" className="ml-2" onChange={onUploadTone} />
+              </label>
+              {uploadedToneName ? <span className="text-muted">{uploadedToneName}</span> : null}
+              {uploadedToneDataUrl ? (
+                <button type="button" className="rounded border border-theme px-2 py-1" onClick={clearUploadedTone}>
+                  Remove
+                </button>
+              ) : null}
             </div>
             <div className="flex flex-wrap items-end gap-2 text-xs">
               <label className="flex items-center gap-1">
