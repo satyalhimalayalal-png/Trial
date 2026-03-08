@@ -17,19 +17,30 @@ function formatDuration(totalSec: number): string {
 type TimerMode = "stopwatch" | "pomodoro";
 type PomodoroPhase = "focus" | "break";
 
+interface PomodoroConfig {
+  focusMinutes: number;
+  breakMinutes: number;
+}
+
+const DEFAULT_CONFIG: PomodoroConfig = {
+  focusMinutes: 25,
+  breakMinutes: 5,
+};
+
 export function FocusTimer() {
   const timer = useFocusTimer();
   const [mode, setMode] = useState<TimerMode>("stopwatch");
   const [phase, setPhase] = useState<PomodoroPhase>("focus");
-  const [focusMinutes, setFocusMinutes] = useState(25);
-  const [breakMinutes, setBreakMinutes] = useState(5);
-  const [remainingSec, setRemainingSec] = useState(25 * 60);
+  const [config, setConfig] = useState<PomodoroConfig>(DEFAULT_CONFIG);
+  const [draftFocus, setDraftFocus] = useState(DEFAULT_CONFIG.focusMinutes);
+  const [draftBreak, setDraftBreak] = useState(DEFAULT_CONFIG.breakMinutes);
+  const [remainingSec, setRemainingSec] = useState(DEFAULT_CONFIG.focusMinutes * 60);
   const [pomodoroRunning, setPomodoroRunning] = useState(false);
   const [pomodoroOwnsSession, setPomodoroOwnsSession] = useState(false);
 
   const phaseDurationSec = useMemo(() => {
-    return (phase === "focus" ? focusMinutes : breakMinutes) * 60;
-  }, [phase, focusMinutes, breakMinutes]);
+    return (phase === "focus" ? config.focusMinutes : config.breakMinutes) * 60;
+  }, [phase, config.focusMinutes, config.breakMinutes]);
 
   useEffect(() => {
     if (mode !== "pomodoro") {
@@ -66,19 +77,19 @@ export function FocusTimer() {
       }
       setPomodoroOwnsSession(false);
       setPhase("break");
-      setRemainingSec(breakMinutes * 60);
+      setRemainingSec(config.breakMinutes * 60);
       return;
     }
 
     setPhase("focus");
-    setRemainingSec(focusMinutes * 60);
+    setRemainingSec(config.focusMinutes * 60);
   }, [
     mode,
     pomodoroRunning,
     remainingSec,
     phase,
-    focusMinutes,
-    breakMinutes,
+    config.focusMinutes,
+    config.breakMinutes,
     pomodoroOwnsSession,
     timer.active,
     timer.stop,
@@ -107,6 +118,35 @@ export function FocusTimer() {
     setPomodoroOwnsSession(false);
     setPomodoroRunning(false);
     setRemainingSec(phaseDurationSec);
+  };
+
+  const jumpToPhase = (nextPhase: PomodoroPhase) => {
+    if (nextPhase === "break" && pomodoroOwnsSession && timer.active) {
+      void timer.stop();
+      setPomodoroOwnsSession(false);
+    }
+
+    if (nextPhase === "focus" && !timer.active && pomodoroRunning) {
+      void timer.start();
+      setPomodoroOwnsSession(true);
+    }
+
+    setPhase(nextPhase);
+    setRemainingSec((nextPhase === "focus" ? config.focusMinutes : config.breakMinutes) * 60);
+  };
+
+  const applyConfig = () => {
+    const nextFocus = Math.max(1, Math.min(180, Math.floor(draftFocus || 0)));
+    const nextBreak = Math.max(1, Math.min(120, Math.floor(draftBreak || 0)));
+    setConfig({ focusMinutes: nextFocus, breakMinutes: nextBreak });
+    setRemainingSec((phase === "focus" ? nextFocus : nextBreak) * 60);
+  };
+
+  const applyPreset = (focusMinutes: number, breakMinutes: number) => {
+    setDraftFocus(focusMinutes);
+    setDraftBreak(breakMinutes);
+    setConfig({ focusMinutes, breakMinutes });
+    setRemainingSec((phase === "focus" ? focusMinutes : breakMinutes) * 60);
   };
 
   return (
@@ -145,40 +185,18 @@ export function FocusTimer() {
           )}
         </div>
       ) : (
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted">
-              {phase === "focus" ? "Focus session" : "Break"}
-            </p>
-            <p className="font-mono text-2xl">{formatDuration(remainingSec)}</p>
+        <div className="space-y-3">
+          <div className="flex justify-center">
+            <div className={`pomodoro-ring ${pomodoroRunning ? "pomodoro-ring-running" : ""}`}>
+              <div className="pomodoro-ring-core">
+                <p className="text-xs uppercase tracking-[0.1em] text-muted">
+                  {phase === "focus" ? "Work" : "Break"}
+                </p>
+                <p className="font-mono text-3xl">{formatDuration(remainingSec)}</p>
+              </div>
+            </div>
           </div>
-          <div className="mb-2 flex items-center gap-2 text-xs">
-            <label className="flex items-center gap-1">
-              Focus
-              <select
-                className="rounded border border-theme surface px-2 py-1"
-                value={focusMinutes}
-                onChange={(event) => setFocusMinutes(Number(event.target.value))}
-              >
-                <option value={15}>15m</option>
-                <option value={25}>25m</option>
-                <option value={45}>45m</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-1">
-              Break
-              <select
-                className="rounded border border-theme surface px-2 py-1"
-                value={breakMinutes}
-                onChange={(event) => setBreakMinutes(Number(event.target.value))}
-              >
-                <option value={5}>5m</option>
-                <option value={10}>10m</option>
-                <option value={15}>15m</option>
-              </select>
-            </label>
-          </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2">
             {pomodoroRunning ? (
               <button className="rounded border border-theme px-3 py-1" onClick={pausePomodoro}>
                 Pause
@@ -191,6 +209,52 @@ export function FocusTimer() {
             <button className="rounded border border-theme px-3 py-1" onClick={resetPomodoro}>
               Reset
             </button>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <button className="rounded border border-theme px-3 py-1 text-sm" onClick={() => jumpToPhase("focus")}>
+              Skip break
+            </button>
+            <button className="rounded border border-theme px-3 py-1 text-sm" onClick={() => jumpToPhase("break")}>
+              Skip work
+            </button>
+          </div>
+          <div className="rounded border border-theme p-2">
+            <p className="mb-2 text-xs uppercase text-muted">Presets</p>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <button className="rounded border border-theme px-2 py-1 text-xs" onClick={() => applyPreset(25, 5)}>
+                25/5
+              </button>
+              <button className="rounded border border-theme px-2 py-1 text-xs" onClick={() => applyPreset(50, 10)}>
+                50/10
+              </button>
+            </div>
+            <div className="flex flex-wrap items-end gap-2 text-xs">
+              <label className="flex items-center gap-1">
+                Work
+                <input
+                  type="number"
+                  min={1}
+                  max={180}
+                  className="w-16 rounded border border-theme surface px-2 py-1"
+                  value={draftFocus}
+                  onChange={(event) => setDraftFocus(Number(event.target.value))}
+                />
+              </label>
+              <label className="flex items-center gap-1">
+                Break
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  className="w-16 rounded border border-theme surface px-2 py-1"
+                  value={draftBreak}
+                  onChange={(event) => setDraftBreak(Number(event.target.value))}
+                />
+              </label>
+              <button className="rounded border border-theme px-2 py-1" onClick={applyConfig}>
+                Apply
+              </button>
+            </div>
           </div>
         </div>
       )}

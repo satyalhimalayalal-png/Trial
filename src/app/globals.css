@@ -717,6 +717,32 @@ textarea {
   transform: translateX(0.9444444444rem);
 }
 
+.pomodoro-ring {
+  align-items: center;
+  border: 10px solid color-mix(in oklab, var(--custom-color) 34%, var(--app-background));
+  border-radius: 9999px;
+  display: inline-flex;
+  height: 13.5rem;
+  justify-content: center;
+  transition: transform 180ms ease, border-color 180ms ease;
+  width: 13.5rem;
+}
+
+.pomodoro-ring-running {
+  animation: pomodoro-ring-pulse 1.45s ease-in-out infinite;
+}
+
+.pomodoro-ring-core {
+  align-items: center;
+  border-radius: 9999px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  height: 10.8rem;
+  justify-content: center;
+  width: 10.8rem;
+}
+
 @keyframes recurring-pulse {
   0%,
   100% {
@@ -737,6 +763,16 @@ textarea {
     filter: blur(0);
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pomodoro-ring-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
   }
 }
 
