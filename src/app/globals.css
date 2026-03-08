@@ -33,7 +33,7 @@
   --custom-color: #e10061;
   --custom-color-highlight: #ed0c00;
 
-  --app-background: #e3e7ec;
+  --app-background: #fff;
   --app-color: #000;
   --app-header-bg: #f7f8fa;
   --someday-list-background: #f7f8fa;
@@ -47,7 +47,6 @@
   --todo-header-background: #edeef0;
   --todo-header-text-color: #141414;
   --todo-border-color: #edeef0;
-  --task-grid-line-color: #d9dde2;
   --todo-checkbox: color-mix(in oklab, var(--custom-color) 30%, transparent);
   --todo-checkbox-done-color: #999;
   --todo-button-bg: #f7f8fa;
@@ -100,7 +99,6 @@
   --todo-header-background: #1b1c20;
   --todo-header-text-color: #fff;
   --todo-border-color: #1b1c20;
-  --task-grid-line-color: #2a2f36;
   --todo-checkbox: color-mix(in oklab, var(--custom-color) 50%, transparent);
   --todo-checkbox-done-color: #484848;
   --todo-button-bg: #484848;
@@ -163,18 +161,18 @@
 }
 
 [data-spacing="compact"] {
-  --todo-item-height: 1.625rem;
-  --todo-item-spacing-y: 0.375rem;
+  --todo-item-height: 1.6666666667rem;
+  --todo-item-spacing-y: 0.3888888889rem;
 }
 
 [data-spacing="cozy"] {
-  --todo-item-height: 2.125rem;
-  --todo-item-spacing-y: 0.625rem;
+  --todo-item-height: 2.1111111111rem;
+  --todo-item-spacing-y: 0.6111111111rem;
 }
 
 [data-spacing="roomy"] {
-  --todo-item-height: 2.375rem;
-  --todo-item-spacing-y: 0.75rem;
+  --todo-item-height: 2.3333333333rem;
+  --todo-item-spacing-y: 0.7222222222rem;
 }
 
 [data-columns="3"] {
@@ -200,7 +198,6 @@ body {
   margin: 0;
   min-height: 100%;
   overflow: hidden;
-  background-color: var(--app-background);
 }
 
 body {
@@ -250,7 +247,6 @@ textarea {
 
 .planner-main-shell {
   height: 100vh;
-  overflow-y: auto;
   padding-top: calc(var(--ui-toolbar-height) + var(--ui-top-border-width));
 }
 
@@ -365,7 +361,7 @@ textarea {
 }
 
 .task-row + .task-row {
-  border-top-color: var(--task-grid-line-color);
+  border-top-color: var(--todo-border-color);
 }
 
 .task-row-no-lines,
@@ -435,13 +431,13 @@ textarea {
 }
 
 .task-input {
-  border-bottom: 1px solid var(--task-grid-line-color);
+  border-bottom: 1px solid var(--todo-border-color);
   padding: calc(var(--todo-item-spacing-y) - 0.0555555556rem) 0.5555555556rem;
 }
 
 .quick-add-line {
   background: transparent;
-  border-top: 1px solid var(--task-grid-line-color);
+  border-top: 1px solid var(--todo-border-color);
   color: var(--custom-color-text-light);
   height: var(--todo-item-height);
   padding: calc(var(--todo-item-spacing-y) - 0.0555555556rem) 0.5555555556rem;
@@ -494,7 +490,7 @@ textarea {
   background-image: repeating-linear-gradient(
     to bottom,
     transparent calc(var(--line-row-height) - 1px),
-    var(--task-grid-line-color) var(--line-row-height)
+    var(--todo-border-color) var(--line-row-height)
   );
 }
 
@@ -681,7 +677,7 @@ textarea {
 }
 
 .tab-view-enter {
-  animation: tab-view-enter 160ms ease-out;
+  animation: tab-view-enter 360ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .ios-switch {
@@ -720,33 +716,6 @@ textarea {
   transform: translateX(0.9444444444rem);
 }
 
-.pomodoro-ring {
-  align-items: center;
-  border-radius: 9999px;
-  display: inline-flex;
-  height: 13.5rem;
-  justify-content: center;
-  padding: 6px;
-  transition: transform 180ms ease, border-color 180ms ease;
-  width: 13.5rem;
-}
-
-.pomodoro-ring-running {
-  animation: pomodoro-ring-pulse 1s ease-in-out infinite;
-}
-
-.pomodoro-ring-core {
-  align-items: center;
-  background-color: var(--app-background);
-  border-radius: 9999px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  height: 11.6rem;
-  justify-content: center;
-  width: 11.6rem;
-}
-
 @keyframes recurring-pulse {
   0%,
   100% {
@@ -759,22 +728,14 @@ textarea {
 
 @keyframes tab-view-enter {
   from {
-    opacity: 0.99;
-    transform: translateY(2px);
+    filter: blur(1px);
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
   }
   to {
+    filter: blur(0);
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes pomodoro-ring-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.035);
   }
 }
 
