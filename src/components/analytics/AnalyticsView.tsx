@@ -109,16 +109,12 @@ export function AnalyticsView() {
   const dayLabels = Array.from({ length: 7 }, (_, i) => format(addDays(weekStart, i), "EEE"));
 
   const linePoints = useMemo(() => {
-    const width = 960;
     const height = 176;
-    const left = 16;
-    const right = width - 16;
     const top = 12;
     const bottom = height - 12;
-    const drawableW = right - left;
     const drawableH = bottom - top;
     return hourTotals.map((sec, hour) => {
-      const x = left + (hour / 23) * drawableW;
+      const x = hour * 10 + 5;
       const y = bottom - (Math.max(0, sec) / maxHour) * drawableH;
       return { x, y, hour, sec };
     });
@@ -248,15 +244,15 @@ export function AnalyticsView() {
             </div>
           </div>
           <div className="mt-3 overflow-x-auto">
-            <div ref={chartRef} className="relative min-w-[680px]">
+            <div ref={chartRef} className="relative min-w-[640px]">
               {chartType === "bar" ? (
-                <div className="flex h-44 items-end gap-1">
+                <div className="grid h-44 grid-cols-24 items-end gap-1">
                   {hourTotals.map((sec, hour) => {
                     const valuePercent = toPercent(sec, maxHour);
                     return (
-                      <div key={hour} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+                      <div key={hour} className="flex min-w-0 items-end justify-center">
                         <div
-                          className="w-full rounded-t bg-accent transition-[height] duration-300"
+                          className="w-full rounded-t-[3px] bg-accent transition-[height] duration-300"
                           style={{ height: `${Math.max(4, Math.round(valuePercent * 1.76))}px` }}
                           onMouseEnter={(event) => queueTooltip(event.currentTarget, hour, sec)}
                           onMouseLeave={hideTooltip}
@@ -267,7 +263,7 @@ export function AnalyticsView() {
                 </div>
               ) : (
                 <div className="h-44">
-                  <svg viewBox="0 0 960 176" className="h-full w-full">
+                  <svg viewBox="0 0 240 176" preserveAspectRatio="none" className="h-full w-full">
                     <polyline
                       fill="none"
                       stroke="var(--custom-color)"
@@ -299,15 +295,16 @@ export function AnalyticsView() {
                   <div className="text-muted">{chartTooltip.value}</div>
                 </div>
               ) : null}
-              <div className="mt-2 grid grid-cols-8 text-xs text-muted">
-                <span>00:00</span>
-                <span className="text-center">03:00</span>
-                <span className="text-center">06:00</span>
-                <span className="text-center">09:00</span>
-                <span className="text-center">12:00</span>
-                <span className="text-center">15:00</span>
-                <span className="text-center">18:00</span>
-                <span className="text-right">21:00</span>
+              <div className="relative mt-2 h-4 text-xs text-muted">
+                {[0, 3, 6, 9, 12, 15, 18, 21].map((hour) => (
+                  <span
+                    key={hour}
+                    className="absolute -translate-x-1/2"
+                    style={{ left: `${((hour + 0.5) / 24) * 100}%` }}
+                  >
+                    {hour.toString().padStart(2, "0")}:00
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -316,33 +313,30 @@ export function AnalyticsView() {
         <section className="mt-4 rounded border border-theme surface p-3">
           <h2 className="text-sm font-semibold">Focus heat map</h2>
           <div className="mt-3 overflow-x-auto pb-1">
-            <div className="min-w-[1160px]">
-              <div className="mb-2 flex">
-                <div className="w-14 shrink-0" />
-                <div className="grid flex-1 grid-cols-8 gap-3 text-center text-sm font-semibold text-muted">
-                  <span>00:00</span>
-                  <span>03:00</span>
-                  <span>06:00</span>
-                  <span>09:00</span>
-                  <span>12:00</span>
-                  <span>15:00</span>
-                  <span>18:00</span>
-                  <span>21:00</span>
+            <div className="min-w-[620px]">
+              <div className="mb-1 flex items-end gap-2">
+                <div className="w-8 shrink-0" />
+                <div className="grid gap-1 text-[10px] text-muted" style={{ gridTemplateColumns: "repeat(24, 0.72rem)" }}>
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <span key={hour} className="text-center">
+                      {hour % 6 === 0 ? hour.toString().padStart(2, "0") : ""}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {hourByDayTotals.map((row, dayIndex) => (
-                  <div key={dayLabels[dayIndex]} className="flex items-center gap-3">
-                    <span className="w-11 shrink-0 text-3xl leading-none text-muted">{dayLabels[dayIndex].slice(0, 3)}</span>
-                    <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(24, 1.55rem)" }}>
+                  <div key={dayLabels[dayIndex]} className="flex items-center gap-2">
+                    <span className="w-8 shrink-0 text-xs text-muted">{dayLabels[dayIndex].slice(0, 3)}</span>
+                    <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(24, 0.72rem)" }}>
                       {row.map((value, hour) => {
                         const ratio = maxHeat > 0 ? value / maxHeat : 0;
-                        const mixPercent = Math.round(10 + ratio * 85);
+                        const mixPercent = Math.round(12 + ratio * 82);
                         return (
                           <div
                             key={`${dayIndex}-${hour}`}
-                            className="h-6 w-6 rounded-md border border-theme"
+                            className="h-3 w-3 rounded-[3px] border border-theme"
                             style={{ backgroundColor: `color-mix(in oklab, var(--custom-color) ${mixPercent}%, var(--app-background))` }}
                             title={`${dayLabels[dayIndex]} ${hour.toString().padStart(2, "0")}:00 · ${formatSec(value)}`}
                           />
