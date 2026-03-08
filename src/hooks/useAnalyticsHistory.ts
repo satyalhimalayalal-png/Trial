@@ -14,6 +14,18 @@ interface Point {
   value: number;
 }
 
+interface YearHeatCell {
+  dateKey: string;
+  value: number;
+  inMonth: boolean;
+}
+
+interface YearHeatMonth {
+  label: string;
+  month: number;
+  weeks: YearHeatCell[][];
+}
+
 function forEachDaySlice(
   startMs: number,
   endMs: number,
@@ -128,6 +140,43 @@ export function useAnalyticsHistory() {
     });
   }, [dayTotalsMap]);
 
+  const yearHeatmap = useMemo(() => {
+    const year = new Date().getFullYear();
+    const months: YearHeatMonth[] = [];
+
+    for (let month = 0; month < 12; month += 1) {
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 0);
+      const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+      const gridEnd = addDays(startOfWeek(monthEnd, { weekStartsOn: 0 }), 6);
+
+      const weeks: YearHeatCell[][] = [];
+      let cursor = new Date(gridStart);
+      while (cursor <= gridEnd) {
+        const weekCells: YearHeatCell[] = [];
+        for (let day = 0; day < 7; day += 1) {
+          const date = addDays(cursor, day);
+          const dateKey = format(date, "yyyy-MM-dd");
+          weekCells.push({
+            dateKey,
+            value: dayTotalsMap.get(dateKey) ?? 0,
+            inMonth: date.getMonth() === month && date.getFullYear() === year,
+          });
+        }
+        weeks.push(weekCells);
+        cursor = addDays(cursor, 7);
+      }
+
+      months.push({
+        label: format(monthStart, "MMM"),
+        month,
+        weeks,
+      });
+    }
+
+    return { months };
+  }, [dayTotalsMap]);
+
   const completedTasks = useMemo(() => (tasks ?? []).filter((task) => task.completed), [tasks]);
 
   const completionTrend = useMemo<Point[]>(() => {
@@ -221,6 +270,7 @@ export function useAnalyticsHistory() {
     projectBreakdown,
     timeDistribution,
     sessionsForGantt,
+    yearHeatmap,
     tasksById,
     listsById,
   };

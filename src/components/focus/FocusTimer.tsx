@@ -41,6 +41,12 @@ export function FocusTimer() {
   const phaseDurationSec = useMemo(() => {
     return (phase === "focus" ? config.focusMinutes : config.breakMinutes) * 60;
   }, [phase, config.focusMinutes, config.breakMinutes]);
+  const phaseProgress = useMemo(() => {
+    if (phaseDurationSec <= 0) return 0;
+    return Math.max(0, Math.min(1, (phaseDurationSec - remainingSec) / phaseDurationSec));
+  }, [phaseDurationSec, remainingSec]);
+  const ringFillColor = phase === "focus" ? "#cf2d2d" : "#2f72ea";
+  const ringTrackColor = phase === "focus" ? "#4c1f1f" : "#1f3457";
 
   useEffect(() => {
     if (mode !== "pomodoro") {
@@ -187,7 +193,12 @@ export function FocusTimer() {
       ) : (
         <div className="space-y-3">
           <div className="flex justify-center">
-            <div className={`pomodoro-ring ${pomodoroRunning ? "pomodoro-ring-running" : ""}`}>
+            <div
+              className={`pomodoro-ring ${pomodoroRunning ? "pomodoro-ring-running" : ""}`}
+              style={{
+                background: `conic-gradient(${ringFillColor} ${Math.round(phaseProgress * 360)}deg, ${ringTrackColor} 0deg)`,
+              }}
+            >
               <div className="pomodoro-ring-core">
                 <p className="text-xs uppercase tracking-[0.1em] text-muted">
                   {phase === "focus" ? "Work" : "Break"}
@@ -211,11 +222,11 @@ export function FocusTimer() {
             </button>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <button className="rounded border border-theme px-3 py-1 text-sm" onClick={() => jumpToPhase("focus")}>
-              Skip break
-            </button>
-            <button className="rounded border border-theme px-3 py-1 text-sm" onClick={() => jumpToPhase("break")}>
-              Skip work
+            <button
+              className="rounded border border-theme px-3 py-1 text-sm"
+              onClick={() => jumpToPhase(phase === "focus" ? "break" : "focus")}
+            >
+              {phase === "focus" ? "Skip work" : "Skip break"}
             </button>
           </div>
           <div className="rounded border border-theme p-2">

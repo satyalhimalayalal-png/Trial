@@ -719,11 +719,11 @@ textarea {
 
 .pomodoro-ring {
   align-items: center;
-  border: 10px solid color-mix(in oklab, var(--custom-color) 34%, var(--app-background));
   border-radius: 9999px;
   display: inline-flex;
   height: 13.5rem;
   justify-content: center;
+  padding: 10px;
   transition: transform 180ms ease, border-color 180ms ease;
   width: 13.5rem;
 }
@@ -734,6 +734,7 @@ textarea {
 
 .pomodoro-ring-core {
   align-items: center;
+  background-color: var(--app-background);
   border-radius: 9999px;
   display: flex;
   flex-direction: column;
