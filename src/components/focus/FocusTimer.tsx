@@ -16,6 +16,7 @@ function formatDuration(totalSec: number): string {
 
 type TimerMode = "stopwatch" | "pomodoro";
 type PomodoroPhase = "focus" | "break";
+type AlertTone = "synth-chime" | "synth-bell" | "synth-pulse" | "track";
 
 interface PomodoroConfig {
   focusMinutes: number;
@@ -37,6 +38,7 @@ export function FocusTimer() {
   const [remainingSec, setRemainingSec] = useState(DEFAULT_CONFIG.focusMinutes * 60);
   const [pomodoroRunning, setPomodoroRunning] = useState(false);
   const [pomodoroOwnsSession, setPomodoroOwnsSession] = useState(false);
+  const [alertTone, setAlertTone] = useState<AlertTone>("synth-chime");
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   const phaseDurationSec = useMemo(() => {
@@ -62,7 +64,51 @@ export function FocusTimer() {
     };
   }, []);
 
+  const playSynthAlert = (tone: Exclude<AlertTone, "track">) => {
+    if (typeof window === "undefined") return;
+    const AudioContextImpl =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextImpl) return;
+
+    const context = new AudioContextImpl();
+    const now = context.currentTime;
+
+    const patterns: Record<Exclude<AlertTone, "track">, number[]> = {
+      "synth-chime": [784, 988, 1175, 1568],
+      "synth-bell": [523, 659, 784, 988],
+      "synth-pulse": [740, 740, 740, 988],
+    };
+    const notes = patterns[tone];
+
+    notes.forEach((freq, index) => {
+      const start = now + index * 0.2;
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.type = tone === "synth-bell" ? "sine" : "triangle";
+      osc.frequency.value = freq;
+
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.34, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+
+      osc.connect(gain);
+      gain.connect(context.destination);
+      osc.start(start);
+      osc.stop(start + 0.18);
+    });
+
+    window.setTimeout(() => {
+      void context.close();
+    }, 1400);
+  };
+
   const playPhaseEndRingtone = () => {
+    if (alertTone !== "track") {
+      playSynthAlert(alertTone);
+      return;
+    }
+
     const audio = ringtoneRef.current;
     if (!audio) return;
     audio.pause();
@@ -73,6 +119,7 @@ export function FocusTimer() {
   };
 
   const primeRingtone = () => {
+    if (alertTone !== "track") return;
     const audio = ringtoneRef.current;
     if (!audio) return;
     const previousVolume = audio.volume;
@@ -280,6 +327,28 @@ export function FocusTimer() {
               </button>
               <button className="rounded border border-theme px-2 py-1 text-xs" onClick={() => applyPreset(50, 10)}>
                 50 | 10
+              </button>
+            </div>
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+              <label className="flex items-center gap-1">
+                Alert
+                <select
+                  className="rounded border border-theme surface px-2 py-1"
+                  value={alertTone}
+                  onChange={(event) => setAlertTone(event.target.value as AlertTone)}
+                >
+                  <option value="synth-chime">Synth Chime</option>
+                  <option value="synth-bell">Synth Bell</option>
+                  <option value="synth-pulse">Synth Pulse</option>
+                  <option value="track">Uploaded Track</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                className="rounded border border-theme px-2 py-1"
+                onClick={playPhaseEndRingtone}
+              >
+                Preview
               </button>
             </div>
             <div className="flex flex-wrap items-end gap-2 text-xs">
