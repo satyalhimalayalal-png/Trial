@@ -16,7 +16,7 @@ function formatDuration(totalSec: number): string {
 
 type TimerMode = "stopwatch" | "pomodoro";
 type PomodoroPhase = "focus" | "break";
-type AlertTone = "synth-chime" | "synth-bell" | "synth-pulse" | "default-track" | "uploaded-file";
+type AlertTone = "synth-chime" | "synth-bell" | "synth-pulse" | "uploaded-file";
 
 interface PomodoroConfig {
   focusMinutes: number;
@@ -101,7 +101,7 @@ export function FocusTimer() {
     const context = new AudioContextImpl();
     const now = context.currentTime;
 
-    const patterns: Record<Exclude<AlertTone, "default-track" | "uploaded-file">, number[]> = {
+    const patterns: Record<Exclude<AlertTone, "uploaded-file">, number[]> = {
       "synth-chime": [784, 988, 1175, 1568],
       "synth-bell": [523, 659, 784, 988],
       "synth-pulse": [740, 740, 740, 988],
@@ -146,7 +146,7 @@ export function FocusTimer() {
   };
 
   const primeRingtone = () => {
-    if (alertTone !== "default-track" && alertTone !== "uploaded-file") return;
+    if (alertTone !== "uploaded-file") return;
     const audio = alertTone === "uploaded-file" ? uploadedRingtoneRef.current : defaultRingtoneRef.current;
     if (!audio) return;
     const previousVolume = audio.volume;
@@ -391,7 +391,6 @@ export function FocusTimer() {
                   <option value="synth-chime">Synth Chime</option>
                   <option value="synth-bell">Synth Bell</option>
                   <option value="synth-pulse">Synth Pulse</option>
-                  <option value="default-track">Pomodoro End MP3</option>
                   {uploadedToneDataUrl ? <option value="uploaded-file">Your Upload</option> : null}
                 </select>
               </label>
