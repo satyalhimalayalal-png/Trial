@@ -25,6 +25,7 @@ export interface SharedStatsSnapshot {
 
 export interface SocialUser {
   id: string;
+  username: string;
   google_email: string;
   display_name: string | null;
   avatar_url: string | null;

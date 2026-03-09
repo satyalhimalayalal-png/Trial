@@ -54,7 +54,7 @@ export function FriendsPanel() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string>("");
-  const [recipientEmail, setRecipientEmail] = useState("");
+  const [recipientUsername, setRecipientUsername] = useState("");
   const [friends, setFriends] = useState<FriendWithSnapshot[]>([]);
   const [incoming, setIncoming] = useState<PendingIncoming[]>([]);
   const [outgoing, setOutgoing] = useState<PendingOutgoing[]>([]);
@@ -122,15 +122,15 @@ export function FriendsPanel() {
   }, [token, refreshSocial]);
 
   const sendRequest = async () => {
-    if (!recipientEmail.trim()) return;
+    if (!recipientUsername.trim()) return;
     setBusy(true);
     try {
-      const payload = { action: "send", recipientEmail: recipientEmail.trim() };
+      const payload = { action: "send", recipientUsername: recipientUsername.trim() };
       const response = await socialFetch<{ autoAccepted?: boolean }>("/api/social/requests", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setRecipientEmail("");
+      setRecipientUsername("");
       setStatus(response.autoAccepted ? "Cross request found. Friendship confirmed." : "Friend request sent.");
       await refreshSocial();
     } catch (error) {
@@ -202,12 +202,12 @@ export function FriendsPanel() {
       ) : (
         <div className="mt-2 space-y-3">
           <div>
-            <p className="text-muted">Add friend by email</p>
+            <p className="text-muted">Add friend by username</p>
             <div className="mt-1 flex items-center gap-1">
               <input
-                value={recipientEmail}
-                onChange={(event) => setRecipientEmail(event.target.value)}
-                placeholder="friend@email.com"
+                value={recipientUsername}
+                onChange={(event) => setRecipientUsername(event.target.value)}
+                placeholder="@username"
                 className="w-full rounded border border-theme surface px-2 py-1"
               />
               <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void sendRequest()} disabled={busy || loading}>
@@ -266,8 +266,8 @@ export function FriendsPanel() {
               {incoming.length === 0 ? <p className="text-muted">None</p> : null}
               {incoming.map((request) => (
                 <div key={request.id} className="rounded border border-theme p-2">
-                  <p className="truncate">{request.sender.display_name ?? request.sender.google_email}</p>
-                  <p className="truncate text-muted">{request.sender.google_email}</p>
+                  <p className="truncate">{request.sender.display_name ?? `@${request.sender.username}`}</p>
+                  <p className="truncate text-muted">@{request.sender.username}</p>
                   <div className="mt-1 flex items-center gap-1">
                     <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void resolveRequest(request.id, "accept")} disabled={busy}>
                       Accept
@@ -287,8 +287,8 @@ export function FriendsPanel() {
               {outgoing.length === 0 ? <p className="text-muted">None</p> : null}
               {outgoing.map((request) => (
                 <div key={request.id} className="rounded border border-theme p-2">
-                  <p className="truncate">{request.recipient.display_name ?? request.recipient.google_email}</p>
-                  <p className="truncate text-muted">{request.recipient.google_email}</p>
+                  <p className="truncate">{request.recipient.display_name ?? `@${request.recipient.username}`}</p>
+                  <p className="truncate text-muted">@{request.recipient.username}</p>
                   <div className="mt-1">
                     <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void resolveRequest(request.id, "cancel")} disabled={busy}>
                       Cancel
@@ -305,8 +305,8 @@ export function FriendsPanel() {
               {friends.length === 0 ? <p className="text-muted">No friends yet</p> : null}
               {friends.map((friend) => (
                 <div key={friend.user.id} className="rounded border border-theme p-2">
-                  <p className="truncate">{friend.user.display_name ?? friend.user.google_email}</p>
-                  <p className="truncate text-muted">{friend.user.google_email}</p>
+                  <p className="truncate">{friend.user.display_name ?? `@${friend.user.username}`}</p>
+                  <p className="truncate text-muted">@{friend.user.username}</p>
                   <p className="text-muted">
                     7d: {formatMinutes(friend.stats?.total_focus_minutes_7d)} | 30d: {formatMinutes(friend.stats?.total_focus_minutes_30d)}
                   </p>
@@ -331,4 +331,3 @@ export function FriendsPanel() {
     </section>
   );
 }
-

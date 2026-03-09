@@ -23,13 +23,13 @@ export async function POST(request: Request) {
   try {
     const viewer = await authenticateViewer(request);
     const body = (await request.json()) as
-      | { action: "send"; recipientEmail: string }
+      | { action: "send"; recipientUsername: string }
       | { action: "accept"; requestId: number }
       | { action: "decline"; requestId: number }
       | { action: "cancel"; requestId: number };
 
     if (body.action === "send") {
-      const result = await sendFriendRequest(viewer.user.id, body.recipientEmail);
+      const result = await sendFriendRequest(viewer.user.id, body.recipientUsername);
       return NextResponse.json(result);
     }
     if (body.action === "accept") {

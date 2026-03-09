@@ -14,6 +14,7 @@ Do **not** expose `SUPABASE_SERVICE_ROLE_KEY` to the client.
 Run the SQL migration:
 
 - `supabase/migrations/20260309_000001_social_friends_system.sql`
+- `supabase/migrations/20260309_000002_social_usernames.sql`
 
 This creates:
 
@@ -32,7 +33,7 @@ All APIs require `Authorization: Bearer <google_access_token>`.
 - `GET /api/social/friends` -> list confirmed friends (+ friend-visible stats)
 - `GET /api/social/requests` -> incoming/outgoing pending requests
 - `POST /api/social/requests` actions:
-  - `{ "action": "send", "recipientEmail": "..." }`
+  - `{ "action": "send", "recipientUsername": "..." }` (username; accepts optional legacy email input too)
   - `{ "action": "accept", "requestId": 123 }`
   - `{ "action": "decline", "requestId": 123 }`
   - `{ "action": "cancel", "requestId": 123 }`

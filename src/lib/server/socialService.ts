@@ -16,6 +16,36 @@ const DEFAULT_PRIVACY: Pick<PrivacySettings, "profile_visibility" | "stats_visib
   allow_friend_requests: "everyone",
 };
 
+function normalizeUsernameSeed(value: string): string {
+  const cleaned = value
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^[_\-.]+|[_\-.]+$/g, "");
+  return cleaned || "user";
+}
+
+function ensureUsername(value: string): string {
+  const username = normalizeUsernameSeed(value);
+  if (username.length < 3) return `${username.padEnd(3, "x")}`;
+  return username.slice(0, 32);
+}
+
+async function generateAvailableUsername(seedRaw: string): Promise<string> {
+  const seed = ensureUsername(seedRaw);
+  for (let i = 0; i < 100; i += 1) {
+    const candidate = i === 0 ? seed : `${seed.slice(0, Math.max(3, 32 - String(i).length - 1))}_${i}`;
+    const { data, error } = await supabaseAdmin
+      .from("app_users")
+      .select("id")
+      .eq("username", candidate)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return candidate;
+  }
+  throw new Error("Unable to allocate username");
+}
+
 function canonicalPair(a: string, b: string): { low: string; high: string } {
   return a < b ? { low: a, high: b } : { low: b, high: a };
 }
@@ -48,35 +78,92 @@ export interface ViewerContext {
 }
 
 export async function provisionAppUser(identity: GoogleIdentity): Promise<SocialUser> {
-  const upsertPayload = {
-    google_email: identity.email.toLowerCase(),
-    display_name: identity.name ?? null,
-    avatar_url: identity.picture ?? null,
-    updated_at: new Date().toISOString(),
-  };
+  const email = identity.email.toLowerCase();
+  const fallbackSeed = email.split("@")[0] || "user";
+  const nowIso = new Date().toISOString();
 
-  const { data, error } = await supabaseAdmin
+  const { data: existing, error: existingError } = await supabaseAdmin
     .from("app_users")
-    .upsert(upsertPayload, { onConflict: "google_email" })
     .select("*")
-    .single();
+    .eq("google_email", email)
+    .maybeSingle();
+  if (existingError) throw new Error(existingError.message);
 
-  if (error || !data) throw new Error(error?.message ?? "Failed to provision app user");
+  if (existing) {
+    const patch: Partial<SocialUser> & { updated_at: string } = {
+      display_name: identity.name ?? null,
+      avatar_url: identity.picture ?? null,
+      updated_at: nowIso,
+    };
+    if (!existing.username) {
+      patch.username = await generateAvailableUsername(fallbackSeed);
+    }
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("app_users")
+      .update(patch)
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (updateError || !updated) throw new Error(updateError?.message ?? "Failed to update app user");
+    const { error: privacyError } = await supabaseAdmin
+      .from("privacy_settings")
+      .upsert(
+        {
+          user_id: updated.id,
+          ...DEFAULT_PRIVACY,
+          updated_at: nowIso,
+        },
+        { onConflict: "user_id", ignoreDuplicates: true },
+      );
+    if (privacyError) throw new Error(privacyError.message);
+    return updated;
+  }
 
-  const { error: privacyError } = await supabaseAdmin
-    .from("privacy_settings")
-    .upsert(
-      {
-        user_id: data.id,
-        ...DEFAULT_PRIVACY,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id", ignoreDuplicates: true },
-    );
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const username = await generateAvailableUsername(fallbackSeed);
+    const { data: created, error: createError } = await supabaseAdmin
+      .from("app_users")
+      .insert({
+        google_email: email,
+        username,
+        display_name: identity.name ?? null,
+        avatar_url: identity.picture ?? null,
+        updated_at: nowIso,
+      })
+      .select("*")
+      .single();
 
-  if (privacyError) throw new Error(privacyError.message);
+    if (!createError && created) {
+      const { error: privacyError } = await supabaseAdmin
+        .from("privacy_settings")
+        .upsert(
+          {
+            user_id: created.id,
+            ...DEFAULT_PRIVACY,
+            updated_at: nowIso,
+          },
+          { onConflict: "user_id", ignoreDuplicates: true },
+        );
+      if (privacyError) throw new Error(privacyError.message);
+      return created;
+    }
 
-  return data;
+    const msg = createError?.message ?? "Failed to provision app user";
+    if (msg.includes("app_users_google_email_key")) {
+      // raced with another request; load the winner row
+      const { data: racedUser, error: racedError } = await supabaseAdmin
+        .from("app_users")
+        .select("*")
+        .eq("google_email", email)
+        .single();
+      if (racedError || !racedUser) throw new Error(racedError?.message ?? msg);
+      return racedUser;
+    }
+    if (msg.includes("app_users_username_key")) continue;
+    throw new Error(msg);
+  }
+
+  throw new Error("Failed to provision app user after username retries");
 }
 
 export async function authenticateViewer(request: Request): Promise<ViewerContext> {
@@ -122,21 +209,20 @@ async function areFriends(userA: string, userB: string): Promise<boolean> {
   return Boolean(data);
 }
 
-export async function sendFriendRequest(senderId: string, recipientEmailRaw: string): Promise<{
+export async function sendFriendRequest(senderId: string, recipientIdentifierRaw: string): Promise<{
   request: FriendRequest;
   autoAccepted: boolean;
 }> {
-  const recipientEmail = recipientEmailRaw.trim().toLowerCase();
-  if (!recipientEmail) throw new Error("Recipient email is required");
+  const recipientIdentifier = recipientIdentifierRaw.trim().toLowerCase().replace(/^@+/, "");
+  if (!recipientIdentifier) throw new Error("Recipient username is required");
 
-  const { data: recipient, error: recipientError } = await supabaseAdmin
-    .from("app_users")
-    .select("*")
-    .eq("google_email", recipientEmail)
-    .maybeSingle();
+  const recipientQuery = supabaseAdmin.from("app_users").select("*");
+  const { data: recipient, error: recipientError } = recipientIdentifier.includes("@")
+    ? await recipientQuery.eq("google_email", recipientIdentifier).maybeSingle()
+    : await recipientQuery.eq("username", recipientIdentifier).maybeSingle();
 
   if (recipientError) throw new Error(recipientError.message);
-  if (!recipient) throw new Error("Recipient not found");
+  if (!recipient) throw new Error("Recipient not found. Check username.");
   if (recipient.id === senderId) throw new Error("You cannot send a friend request to yourself");
 
   if (await areFriends(senderId, recipient.id)) {
