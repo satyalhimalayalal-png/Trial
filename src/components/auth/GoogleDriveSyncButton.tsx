@@ -9,6 +9,7 @@ import {
   mergePlannerBackups,
   type PlannerBackupV1,
 } from "@/lib/googleDriveStore";
+import { PLANNER_DATA_CHANGED_EVENT } from "@/lib/sync/realtimeSyncSignal";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file openid email profile";
 const DRIVE_FOLDER_NAME = "CHEQLIST";
@@ -225,6 +226,10 @@ export function GoogleDriveSyncButton({
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const lastMergedTsRef = useRef(0);
   const lastRemoteModifiedRef = useRef<string>("");
+  const syncingRef = useRef(false);
+  const pendingSyncRef = useRef(false);
+  const suppressRealtimeSyncRef = useRef(false);
+  const realtimeSyncTimerRef = useRef<number | null>(null);
 
   const disabled = useMemo(() => !clientId, [clientId]);
   const initials = (email?.trim().charAt(0) || "U").toUpperCase();
@@ -320,6 +325,31 @@ export function GoogleDriveSyncButton({
   }, [clientId, keepSignedIn]);
 
   useEffect(() => {
+    syncingRef.current = syncing;
+  }, [syncing]);
+
+  const scheduleRealtimeSync = (delayMs = 900) => {
+    if (realtimeSyncTimerRef.current) {
+      window.clearTimeout(realtimeSyncTimerRef.current);
+    }
+    realtimeSyncTimerRef.current = window.setTimeout(() => {
+      realtimeSyncTimerRef.current = null;
+      if (!signedIn || !tokenRef.current) return;
+      pendingSyncRef.current = false;
+      void syncNow();
+    }, delayMs);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (realtimeSyncTimerRef.current) {
+        window.clearTimeout(realtimeSyncTimerRef.current);
+        realtimeSyncTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
       if (!wrapperRef.current) return;
       if (wrapperRef.current.contains(event.target as Node)) return;
@@ -332,6 +362,11 @@ export function GoogleDriveSyncButton({
   const syncNow = async () => {
     const accessToken = tokenRef.current;
     if (!accessToken) return;
+    if (syncingRef.current) {
+      pendingSyncRef.current = true;
+      return;
+    }
+
     setSyncing(true);
     try {
       const folderId = await ensureFolder(accessToken);
@@ -356,7 +391,9 @@ export function GoogleDriveSyncButton({
       const remoteTs = getBackupTimestamp(remote) || Date.parse(remoteModified);
       const merged = mergePlannerBackups(local, remote);
       const mergedTs = getBackupTimestamp(merged);
+      suppressRealtimeSyncRef.current = true;
       await importPlannerBackup(merged);
+      suppressRealtimeSyncRef.current = false;
       if (localTs > remoteTs || mergedTs > remoteTs) {
         await uploadBackup(accessToken, merged, folderId, remoteMeta.id);
       }
@@ -364,9 +401,13 @@ export function GoogleDriveSyncButton({
       lastRemoteModifiedRef.current = remoteModified;
       setStatus(`Synced ${new Date().toLocaleTimeString()}`);
     } catch (error) {
+      suppressRealtimeSyncRef.current = false;
       setStatus(`Sync failed: ${summarizeError(error)}`);
     } finally {
       setSyncing(false);
+      if (pendingSyncRef.current) {
+        scheduleRealtimeSync(350);
+      }
     }
   };
 
@@ -389,7 +430,9 @@ export function GoogleDriveSyncButton({
       const localTs = getBackupTimestamp(local);
       const merged = mergePlannerBackups(local, remote);
       const mergedTs = getBackupTimestamp(merged);
+      suppressRealtimeSyncRef.current = true;
       await importPlannerBackup(merged);
+      suppressRealtimeSyncRef.current = false;
       if (localTs > remoteTs || mergedTs > remoteTs) {
         await uploadBackup(accessToken, merged, folderId, remoteMeta.id);
       }
@@ -397,6 +440,7 @@ export function GoogleDriveSyncButton({
       lastRemoteModifiedRef.current = remoteMeta.modifiedTime ?? "";
       setStatus(remoteTs > localTs ? "Connected and restored" : "Connected and synced");
     } catch (error) {
+      suppressRealtimeSyncRef.current = false;
       setStatus(`Connected, merge failed: ${summarizeError(error)}`);
     } finally {
       setSyncing(false);
@@ -410,10 +454,32 @@ export function GoogleDriveSyncButton({
 
   useEffect(() => {
     if (!signedIn || !tokenRef.current) return;
-    const id = window.setInterval(() => {
+    const onDataChanged = () => {
+      if (suppressRealtimeSyncRef.current) return;
+      pendingSyncRef.current = true;
+      scheduleRealtimeSync(900);
+    };
+    const onFocusSync = () => {
+      if (!tokenRef.current || !signedIn) return;
       void syncNow();
-    }, 20000);
-    return () => window.clearInterval(id);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        onFocusSync();
+      }
+    };
+
+    window.addEventListener(PLANNER_DATA_CHANGED_EVENT, onDataChanged as EventListener);
+    window.addEventListener("focus", onFocusSync);
+    window.addEventListener("online", onFocusSync);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener(PLANNER_DATA_CHANGED_EVENT, onDataChanged as EventListener);
+      window.removeEventListener("focus", onFocusSync);
+      window.removeEventListener("online", onFocusSync);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [signedIn]);
 
   const onConnect = () => {
@@ -443,7 +509,9 @@ export function GoogleDriveSyncButton({
     setSyncing(true);
     try {
       const empty = createEmptyBackup();
+      suppressRealtimeSyncRef.current = true;
       await importPlannerBackup(empty);
+      suppressRealtimeSyncRef.current = false;
       const accessToken = tokenRef.current;
       if (signedIn && accessToken) {
         const folderId = await ensureFolder(accessToken);
@@ -453,6 +521,7 @@ export function GoogleDriveSyncButton({
       setStatus("Data reset");
       window.location.reload();
     } catch (error) {
+      suppressRealtimeSyncRef.current = false;
       setStatus(`Reset failed: ${summarizeError(error)}`);
     } finally {
       setSyncing(false);

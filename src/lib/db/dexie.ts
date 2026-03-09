@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { FocusSession, PlannerList, RecurrenceSeries, SyncTombstone, Task, UserPreferences } from "@/types/domain";
+import { emitPlannerDataChanged } from "@/lib/sync/realtimeSyncSignal";
 
 const ACTIVE_PROFILE_KEY = "cheqlist-active-profile";
 const ANON_PROFILE_ID = "anon";
@@ -65,6 +66,33 @@ class PlannerDB extends Dexie {
       focusSessions: "id, startAt, weekKey, dayKey, taskId",
       syncTombstones: "id, entityType, entityId, deletedAt, updatedAt",
     });
+
+    this.installRealtimeSyncHooks();
+  }
+
+  private installRealtimeSyncHooks(): void {
+    const notify = () => emitPlannerDataChanged();
+    const tableNames = [
+      "tasks",
+      "lists",
+      "preferences",
+      "recurrenceSeries",
+      "focusSessions",
+      "syncTombstones",
+    ] as const;
+
+    for (const tableName of tableNames) {
+      const table = this.table(tableName);
+      table.hook("creating", () => {
+        notify();
+      });
+      table.hook("updating", () => {
+        notify();
+      });
+      table.hook("deleting", () => {
+        notify();
+      });
+    }
   }
 }
 
