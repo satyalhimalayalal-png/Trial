@@ -27,6 +27,7 @@ const DEFAULT_CONFIG: PomodoroConfig = {
   focusMinutes: 25,
   breakMinutes: 5,
 };
+const PREFS_STORAGE_KEY = "focus-timer-prefs-v1";
 
 export function FocusTimer() {
   const timer = useFocusTimer();
@@ -48,6 +49,50 @@ export function FocusTimer() {
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const defaultRingtoneRef = useRef<HTMLAudioElement | null>(null);
   const uploadedRingtoneRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(PREFS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<{
+        focusMinutes: number;
+        breakMinutes: number;
+        autoStartBreaks: boolean;
+        autoStartPomodoros: boolean;
+        alertTone: AlertTone;
+      }>;
+      const nextFocus = Math.max(1, Math.min(180, Math.floor(parsed.focusMinutes ?? DEFAULT_CONFIG.focusMinutes)));
+      const nextBreak = Math.max(1, Math.min(120, Math.floor(parsed.breakMinutes ?? DEFAULT_CONFIG.breakMinutes)));
+      setConfig({ focusMinutes: nextFocus, breakMinutes: nextBreak });
+      setDraftFocus(nextFocus);
+      setDraftBreak(nextBreak);
+      setRemainingSec((phase === "focus" ? nextFocus : nextBreak) * 60);
+      if (typeof parsed.autoStartBreaks === "boolean") setAutoStartBreaks(parsed.autoStartBreaks);
+      if (typeof parsed.autoStartPomodoros === "boolean") setAutoStartPomodoros(parsed.autoStartPomodoros);
+      if (parsed.alertTone === "synth-chime" || parsed.alertTone === "synth-bell" || parsed.alertTone === "synth-pulse" || parsed.alertTone === "uploaded-file") {
+        setAlertTone(parsed.alertTone);
+      }
+    } catch {
+      // keep defaults if cache parse fails
+    }
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(
+      PREFS_STORAGE_KEY,
+      JSON.stringify({
+        focusMinutes: config.focusMinutes,
+        breakMinutes: config.breakMinutes,
+        autoStartBreaks,
+        autoStartPomodoros,
+        alertTone,
+      }),
+    );
+  }, [config.focusMinutes, config.breakMinutes, autoStartBreaks, autoStartPomodoros, alertTone]);
 
   const phaseDurationSec = useMemo(() => {
     return (phase === "focus" ? config.focusMinutes : config.breakMinutes) * 60;
@@ -351,7 +396,7 @@ export function FocusTimer() {
           <div className="flex flex-col items-center">
             <button
               type="button"
-              className={expanded ? "focus-timer-display cursor-pointer text-7xl leading-none" : "focus-timer-display cursor-pointer text-2xl leading-none"}
+              className={expanded ? "focus-timer-display cursor-pointer text-[clamp(4.5rem,15vw,11rem)] leading-none" : "focus-timer-display cursor-pointer text-2xl leading-none"}
               onClick={() => setExpanded((prev) => !prev)}
               title={expanded ? "Minimize timer" : "Fullscreen timer"}
             >
@@ -359,11 +404,11 @@ export function FocusTimer() {
             </button>
           </div>
           {timer.active ? (
-            <button className={expanded ? "rounded border border-theme px-5 py-2 text-lg" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.stop()}>
+            <button className={expanded ? "rounded border border-theme px-8 py-3 text-2xl" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.stop()}>
               Stop
             </button>
           ) : (
-            <button className={expanded ? "rounded border border-theme px-5 py-2 text-lg" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.start()}>
+            <button className={expanded ? "rounded border border-theme px-8 py-3 text-2xl" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.start()}>
               Start
             </button>
           )}
