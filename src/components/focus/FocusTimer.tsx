@@ -31,6 +31,10 @@ const DEFAULT_CONFIG: PomodoroConfig = {
 export function FocusTimer() {
   const timer = useFocusTimer();
   const [mode, setMode] = useState<TimerMode>("pomodoro");
+  const [expanded, setExpanded] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(true);
+  const [autoStartBreaks, setAutoStartBreaks] = useState(false);
+  const [autoStartPomodoros, setAutoStartPomodoros] = useState(false);
   const [phase, setPhase] = useState<PomodoroPhase>("focus");
   const [config, setConfig] = useState<PomodoroConfig>(DEFAULT_CONFIG);
   const [draftFocus, setDraftFocus] = useState(DEFAULT_CONFIG.focusMinutes);
@@ -218,7 +222,6 @@ export function FocusTimer() {
   useEffect(() => {
     if (mode !== "pomodoro" || !pomodoroRunning || remainingSec > 0) return;
 
-    setPomodoroRunning(false);
     playPhaseEndRingtone();
 
     if (phase === "focus") {
@@ -228,11 +231,21 @@ export function FocusTimer() {
       setPomodoroOwnsSession(false);
       setPhase("break");
       setRemainingSec(config.breakMinutes * 60);
+      setPomodoroRunning(autoStartBreaks);
       return;
     }
 
     setPhase("focus");
     setRemainingSec(config.focusMinutes * 60);
+    if (autoStartPomodoros) {
+      if (!timer.active) {
+        void timer.start();
+        setPomodoroOwnsSession(true);
+      }
+      setPomodoroRunning(true);
+      return;
+    }
+    setPomodoroRunning(false);
   }, [
     mode,
     pomodoroRunning,
@@ -242,7 +255,10 @@ export function FocusTimer() {
     config.breakMinutes,
     pomodoroOwnsSession,
     timer.active,
+    timer.start,
     timer.stop,
+    autoStartBreaks,
+    autoStartPomodoros,
   ]);
 
   const startPomodoro = () => {
@@ -301,7 +317,13 @@ export function FocusTimer() {
   };
 
   return (
-    <div className="mb-4 rounded border border-theme surface p-3">
+    <div
+      className={
+        expanded
+          ? "fixed inset-0 z-[260] overflow-y-auto surface p-4"
+          : "mb-4 rounded border border-theme surface p-3"
+      }
+    >
       <div className="mb-3 flex items-center justify-between">
         <p className="focus-timer-label text-xs uppercase text-muted">Focus timer</p>
         <div className="inline-flex overflow-hidden rounded border border-theme">
@@ -324,7 +346,19 @@ export function FocusTimer() {
 
       {mode === "stopwatch" ? (
         <div className="flex items-center justify-between">
-          <p className="focus-timer-display text-2xl">{formatDuration(timer.elapsedSec)}</p>
+          <div className="flex flex-col">
+            <button
+              type="button"
+              className="focus-timer-display cursor-pointer text-2xl"
+              onClick={() => setExpanded((prev) => !prev)}
+              title={expanded ? "Minimize timer" : "Fullscreen timer"}
+            >
+              {formatDuration(timer.elapsedSec)}
+            </button>
+            <p className="mt-0.5 text-[10px] text-muted/80">
+              {expanded ? "Tap time to minimize" : "Tap time to expand"}
+            </p>
+          </div>
           {timer.active ? (
             <button className="rounded border border-theme px-3 py-1" onClick={() => void timer.stop()}>
               Stop
@@ -348,7 +382,17 @@ export function FocusTimer() {
                 <p className="focus-timer-phase text-xs uppercase tracking-[0.1em] text-muted">
                   {phase === "focus" ? "Work" : "Break"}
                 </p>
-                <p className="focus-timer-display text-3xl">{formatDuration(remainingSec)}</p>
+                <button
+                  type="button"
+                  className="focus-timer-display cursor-pointer text-3xl"
+                  onClick={() => setExpanded((prev) => !prev)}
+                  title={expanded ? "Minimize timer" : "Fullscreen timer"}
+                >
+                  {formatDuration(remainingSec)}
+                </button>
+                <p className="text-[10px] text-muted/80">
+                  {expanded ? "Tap time to minimize" : "Tap time to expand"}
+                </p>
               </div>
             </div>
           </div>
@@ -374,90 +418,120 @@ export function FocusTimer() {
               {phase === "focus" ? "Skip work" : "Skip break"}
             </button>
           </div>
-          <div className="rounded border border-theme p-2">
-            <p className="mb-2 text-xs uppercase text-muted">Presets</p>
-            <div className="mb-3 flex flex-wrap gap-2">
-              <button className="rounded border border-theme px-2 py-1 text-xs" onClick={() => applyPreset(25, 5)}>
-                25 | 5
-              </button>
-              <button className="rounded border border-theme px-2 py-1 text-xs" onClick={() => applyPreset(50, 10)}>
-                50 | 10
-              </button>
-            </div>
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-              <label className="flex items-center gap-1">
-                Alert
-                <select
-                  className="rounded border border-theme surface px-2 py-1"
-                  value={alertTone}
-                  onChange={(event) => setAlertTone(event.target.value as AlertTone)}
-                >
-                  <option value="synth-chime">Synth Chime</option>
-                  <option value="synth-bell">Synth Bell</option>
-                  <option value="synth-pulse">Synth Pulse</option>
-                  {uploadedToneDataUrl ? <option value="uploaded-file">Your Upload</option> : null}
-                </select>
-              </label>
+          {!expanded ? (
+            <div className="rounded border border-theme p-2">
               <button
                 type="button"
-                className="rounded border border-theme px-2 py-1"
-                onClick={playPhaseEndRingtone}
+                className="mb-2 flex w-full items-center justify-between text-xs uppercase text-muted"
+                onClick={() => setPresetsOpen((prev) => !prev)}
+                aria-expanded={presetsOpen}
               >
-                Preview
+                <span>Presets</span>
+                <span>{presetsOpen ? "˄" : "˅"}</span>
               </button>
-            </div>
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-              <input
-                ref={uploadInputRef}
-                type="file"
-                accept="audio/*"
-                className="hidden"
-                onChange={onUploadTone}
-              />
-              <button
-                type="button"
-                className="rounded border border-theme px-2 py-1"
-                onClick={() => uploadInputRef.current?.click()}
-              >
-                Upload Sound
-              </button>
-              <span className="max-w-[220px] truncate rounded border border-theme px-2 py-1 text-muted">
-                {uploadedToneName ?? "No file selected"}
-              </span>
-              {uploadedToneDataUrl ? (
-                <button type="button" className="rounded border border-theme px-2 py-1" onClick={clearUploadedTone}>
-                  Remove
-                </button>
+              {presetsOpen ? (
+                <>
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    <button className="rounded border border-theme px-2 py-1 text-xs" onClick={() => applyPreset(25, 5)}>
+                      25 | 5
+                    </button>
+                    <button className="rounded border border-theme px-2 py-1 text-xs" onClick={() => applyPreset(50, 10)}>
+                      50 | 10
+                    </button>
+                  </div>
+                  <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      className={autoStartBreaks ? "rounded border border-theme bg-accent px-2 py-1 text-white" : "rounded border border-theme px-2 py-1"}
+                      onClick={() => setAutoStartBreaks((prev) => !prev)}
+                    >
+                      Auto start breaks: {autoStartBreaks ? "On" : "Off"}
+                    </button>
+                    <button
+                      type="button"
+                      className={autoStartPomodoros ? "rounded border border-theme bg-accent px-2 py-1 text-white" : "rounded border border-theme px-2 py-1"}
+                      onClick={() => setAutoStartPomodoros((prev) => !prev)}
+                    >
+                      Auto start pomodoros: {autoStartPomodoros ? "On" : "Off"}
+                    </button>
+                  </div>
+                  <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                    <label className="flex items-center gap-1">
+                      Alert
+                      <select
+                        className="rounded border border-theme surface px-2 py-1"
+                        value={alertTone}
+                        onChange={(event) => setAlertTone(event.target.value as AlertTone)}
+                      >
+                        <option value="synth-chime">Synth Chime</option>
+                        <option value="synth-bell">Synth Bell</option>
+                        <option value="synth-pulse">Synth Pulse</option>
+                        {uploadedToneDataUrl ? <option value="uploaded-file">Your Upload</option> : null}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="rounded border border-theme px-2 py-1"
+                      onClick={playPhaseEndRingtone}
+                    >
+                      Preview
+                    </button>
+                  </div>
+                  <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                    <input
+                      ref={uploadInputRef}
+                      type="file"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={onUploadTone}
+                    />
+                    <button
+                      type="button"
+                      className="rounded border border-theme px-2 py-1"
+                      onClick={() => uploadInputRef.current?.click()}
+                    >
+                      Upload Sound
+                    </button>
+                    <span className="max-w-[220px] truncate rounded border border-theme px-2 py-1 text-muted">
+                      {uploadedToneName ?? "No file selected"}
+                    </span>
+                    {uploadedToneDataUrl ? (
+                      <button type="button" className="rounded border border-theme px-2 py-1" onClick={clearUploadedTone}>
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2 text-xs">
+                    <label className="flex items-center gap-1">
+                      Work
+                      <input
+                        type="number"
+                        min={1}
+                        max={180}
+                        className="w-16 rounded border border-theme surface px-2 py-1"
+                        value={draftFocus}
+                        onChange={(event) => setDraftFocus(Number(event.target.value))}
+                      />
+                    </label>
+                    <label className="flex items-center gap-1">
+                      Break
+                      <input
+                        type="number"
+                        min={1}
+                        max={120}
+                        className="w-16 rounded border border-theme surface px-2 py-1"
+                        value={draftBreak}
+                        onChange={(event) => setDraftBreak(Number(event.target.value))}
+                      />
+                    </label>
+                    <button className="rounded border border-theme px-2 py-1" onClick={applyConfig}>
+                      Apply
+                    </button>
+                  </div>
+                </>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-end gap-2 text-xs">
-              <label className="flex items-center gap-1">
-                Work
-                <input
-                  type="number"
-                  min={1}
-                  max={180}
-                  className="w-16 rounded border border-theme surface px-2 py-1"
-                  value={draftFocus}
-                  onChange={(event) => setDraftFocus(Number(event.target.value))}
-                />
-              </label>
-              <label className="flex items-center gap-1">
-                Break
-                <input
-                  type="number"
-                  min={1}
-                  max={120}
-                  className="w-16 rounded border border-theme surface px-2 py-1"
-                  value={draftBreak}
-                  onChange={(event) => setDraftBreak(Number(event.target.value))}
-                />
-              </label>
-              <button className="rounded border border-theme px-2 py-1" onClick={applyConfig}>
-                Apply
-              </button>
-            </div>
-          </div>
+          ) : null}
         </div>
       )}
     </div>

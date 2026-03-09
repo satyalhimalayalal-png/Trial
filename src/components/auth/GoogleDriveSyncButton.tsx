@@ -25,6 +25,27 @@ interface DriveFileMeta {
   modifiedTime?: string;
 }
 
+async function readApiError(res: Response): Promise<string> {
+  const fallback = `HTTP ${res.status}`;
+  try {
+    const text = await res.text();
+    if (!text) return fallback;
+    const parsed = JSON.parse(text) as
+      | { error?: { message?: string; status?: string } }
+      | { message?: string };
+    const message = parsed?.error?.message ?? parsed?.message;
+    const status = parsed?.error?.status;
+    return status ? `${fallback} ${status}: ${message ?? "Unknown error"}` : `${fallback}: ${message ?? text}`;
+  } catch {
+    return fallback;
+  }
+}
+
+function summarizeError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return "Unknown error";
+}
+
 function getGoogleTokenClient(clientId: string, callback: (token: GoogleTokenResponse) => void): GoogleTokenClient | null {
   const googleRef = (window as Window & { google?: unknown }).google as
     | {
@@ -55,7 +76,7 @@ async function findFolder(accessToken: string): Promise<DriveFileMeta | null> {
     `https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,modifiedTime)&pageSize=1`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
-  if (!res.ok) throw new Error(`Drive list failed (${res.status})`);
+  if (!res.ok) throw new Error(`Drive list failed: ${await readApiError(res)}`);
   const json = (await res.json()) as { files?: DriveFileMeta[] };
   return json.files?.[0] ?? null;
 }
@@ -73,7 +94,7 @@ async function createFolder(accessToken: string): Promise<string> {
       parents: ["root"],
     }),
   });
-  if (!res.ok) throw new Error(`Drive folder create failed (${res.status})`);
+  if (!res.ok) throw new Error(`Drive folder create failed: ${await readApiError(res)}`);
   const json = (await res.json()) as { id: string };
   return json.id;
 }
@@ -90,7 +111,7 @@ async function findBackupFile(accessToken: string, folderId: string): Promise<Dr
     `https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,modifiedTime)&pageSize=1`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
-  if (!res.ok) throw new Error(`Drive list failed (${res.status})`);
+  if (!res.ok) throw new Error(`Drive list failed: ${await readApiError(res)}`);
   const json = (await res.json()) as { files?: DriveFileMeta[] };
   return json.files?.[0] ?? null;
 }
@@ -99,7 +120,7 @@ async function downloadBackup(accessToken: string, fileId: string): Promise<Plan
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!res.ok) throw new Error(`Drive download failed (${res.status})`);
+  if (!res.ok) throw new Error(`Drive download failed: ${await readApiError(res)}`);
   return (await res.json()) as PlannerBackupV1;
 }
 
@@ -131,7 +152,7 @@ async function uploadBackup(accessToken: string, payload: PlannerBackupV1, folde
     },
     body,
   });
-  if (!res.ok) throw new Error(`Drive upload failed (${res.status})`);
+  if (!res.ok) throw new Error(`Drive upload failed: ${await readApiError(res)}`);
 }
 
 async function getEmail(accessToken: string): Promise<string | null> {
@@ -238,8 +259,8 @@ export function GoogleDriveSyncButton({
       const remoteMeta = await findBackupFile(accessToken, folderId);
       await uploadBackup(accessToken, local, folderId, remoteMeta?.id);
       setStatus(`Synced ${new Date().toLocaleTimeString()}`);
-    } catch {
-      setStatus("Sync failed");
+    } catch (error) {
+      setStatus(`Sync failed: ${summarizeError(error)}`);
     } finally {
       setSyncing(false);
     }
@@ -268,8 +289,8 @@ export function GoogleDriveSyncButton({
         await uploadBackup(accessToken, local, folderId, remoteMeta.id);
         setStatus("Connected and synced");
       }
-    } catch {
-      setStatus("Connected, merge failed");
+    } catch (error) {
+      setStatus(`Connected, merge failed: ${summarizeError(error)}`);
     } finally {
       setSyncing(false);
     }
