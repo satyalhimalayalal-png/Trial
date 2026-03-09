@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format, startOfDay, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from "date-fns";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getDb } from "@/lib/db/dexie";
@@ -37,6 +37,8 @@ function forEachDaySlice(
 
 export function useAnalyticsHistory() {
   const [nowTick, setNowTick] = useState(Date.now());
+  const lastSocialSyncAtRef = useRef(0);
+  const lastSocialSyncHashRef = useRef<string>("");
   const activeSessionId = useFocusStore((state) => state.activeSessionId);
   const activeStartedAt = useFocusStore((state) => state.activeStartedAt);
   const activeTaskId = useFocusStore((state) => state.activeTaskId);
@@ -263,6 +265,109 @@ export function useAnalyticsHistory() {
       .filter((session) => session.durationSec > 0)
       .sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
   }, [withRealtime]);
+
+  const sharedSnapshot = useMemo(() => {
+    const now = new Date();
+    const today = startOfDay(now);
+    const dayToSec = (dayOffset: number) => {
+      const key = format(subDays(today, dayOffset), "yyyy-MM-dd");
+      return dayTotalsMap.get(key) ?? 0;
+    };
+
+    let focus7Sec = 0;
+    let focus30Sec = 0;
+    for (let i = 0; i < 7; i += 1) focus7Sec += dayToSec(i);
+    for (let i = 0; i < 30; i += 1) focus30Sec += dayToSec(i);
+
+    const sessionWithDuration = withRealtime.filter((session) => Math.max(0, session.durationSec ?? 0) > 0);
+    const sevenDaysAgoMs = subDays(today, 6).getTime();
+    const thirtyDaysAgoMs = subDays(today, 29).getTime();
+    const pomodoros7 = sessionWithDuration.filter((session) => new Date(session.startAt).getTime() >= sevenDaysAgoMs).length;
+    const pomodoros30 = sessionWithDuration.filter((session) => new Date(session.startAt).getTime() >= thirtyDaysAgoMs).length;
+
+    const activeDaySet = new Set(
+      [...dayTotalsMap.entries()].filter(([, sec]) => sec > 0).map(([dayKey]) => dayKey),
+    );
+
+    let currentStreak = 0;
+    for (let i = 0; ; i += 1) {
+      const key = format(subDays(today, i), "yyyy-MM-dd");
+      if (!activeDaySet.has(key)) break;
+      currentStreak += 1;
+    }
+
+    const sortedDays = [...activeDaySet].sort();
+    let longestStreak = 0;
+    let running = 0;
+    let prevDay: Date | null = null;
+    for (const key of sortedDays) {
+      const currentDay = new Date(`${key}T00:00:00`);
+      if (!prevDay) {
+        running = 1;
+      } else {
+        const diffDays = Math.round((currentDay.getTime() - prevDay.getTime()) / (24 * 60 * 60 * 1000));
+        running = diffDays === 1 ? running + 1 : 1;
+      }
+      if (running > longestStreak) longestStreak = running;
+      prevDay = currentDay;
+    }
+
+    const lastActiveSession = sessionWithDuration
+      .map((session) => {
+        const startMs = new Date(session.startAt).getTime();
+        const endMs = startMs + Math.max(0, session.durationSec ?? 0) * 1000;
+        return endMs;
+      })
+      .sort((a, b) => b - a)[0];
+
+    return {
+      total_focus_minutes_7d: Math.round(focus7Sec / 60),
+      total_focus_minutes_30d: Math.round(focus30Sec / 60),
+      total_focus_minutes_all_time: Math.round(totalFocusSec / 60),
+      pomodoros_completed_7d: pomodoros7,
+      pomodoros_completed_30d: pomodoros30,
+      current_streak_days: currentStreak,
+      longest_streak_days: longestStreak,
+      last_active_at: lastActiveSession ? new Date(lastActiveSession).toISOString() : null,
+    };
+  }, [dayTotalsMap, totalFocusSec, withRealtime]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const accessToken = localStorage.getItem("cheqlist-google-access-token");
+    if (!accessToken) return;
+
+    const hash = JSON.stringify(sharedSnapshot);
+    const nowMs = Date.now();
+    if (hash === lastSocialSyncHashRef.current && nowMs - lastSocialSyncAtRef.current < 5 * 60_000) {
+      return;
+    }
+    if (nowMs - lastSocialSyncAtRef.current < 60_000) {
+      return;
+    }
+
+    let cancelled = false;
+    void fetch("/api/social/snapshot", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(sharedSnapshot),
+    })
+      .then((response) => {
+        if (!response.ok || cancelled) return;
+        lastSocialSyncAtRef.current = Date.now();
+        lastSocialSyncHashRef.current = hash;
+      })
+      .catch(() => {
+        // avoid breaking analytics UI on social snapshot sync failures
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sharedSnapshot]);
 
   return {
     ready: Boolean(sessions && tasks && lists),
