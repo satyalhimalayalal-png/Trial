@@ -142,7 +142,7 @@ function PlannerChrome({
       data-text-size={preferences.textSize}
       data-spacing={preferences.spacing}
       data-columns={preferences.columns}
-      className="app-shell h-screen overflow-hidden"
+      className="app-shell h-[100dvh] overflow-hidden"
     >
       <TopAccentBar
         mode={mode}
@@ -154,7 +154,7 @@ function PlannerChrome({
 
       <div
         ref={prefsRef}
-        className="fixed right-3 z-50 w-[290px]"
+        className="fixed inset-x-2 z-50 w-auto sm:inset-x-auto sm:right-3 sm:w-[290px]"
         style={{ top: "calc(var(--ui-toolbar-height) + var(--ui-top-border-width) + 0.3333333333rem)" }}
       >
         {prefsOpen ? <PreferencesSidebar preferences={preferences} onPatch={onPatchPreferences} /> : null}

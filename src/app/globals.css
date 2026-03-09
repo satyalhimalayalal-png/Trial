@@ -644,6 +644,54 @@ textarea {
   }
 }
 
+@media (max-width: 48em) {
+  .planner-main-shell {
+    height: 100dvh;
+  }
+
+  .app-header-grid {
+    gap: 0.3333333333rem;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    padding: 0 0.5rem;
+  }
+
+  .app-logo-wordmark {
+    font-size: 0.9444444444rem;
+  }
+
+  .ui-app-search {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .planner-canvas {
+    grid-template-rows: minmax(0, 1fr) auto minmax(0, 0.9fr);
+  }
+
+  .planner-top {
+    padding: 0 0.5rem;
+  }
+
+  .day-nav-rail {
+    display: none;
+  }
+
+  .week-grid-track {
+    --week-col-min: 15rem;
+    min-width: max(100%, calc(var(--week-column-count, 1) * 15rem));
+  }
+
+  .pomodoro-ring {
+    height: 11.25rem;
+    width: 11.25rem;
+  }
+
+  .pomodoro-ring-core {
+    height: 9.6rem;
+    width: 9.6rem;
+  }
+}
+
 .week-slide-left {
   animation: week-slide-left 220ms ease;
 }

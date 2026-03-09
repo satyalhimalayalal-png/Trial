@@ -40,15 +40,20 @@ export function WeekGrid({
   onEditRecurring,
 }: WeekGridProps) {
   return (
-    <section className="h-full overflow-x-hidden">
+    <section className="h-full overflow-x-auto">
       <div
         key={motionKey}
         className={clsx(
-          "grid h-full min-w-0 column-stack",
+          "week-grid-track grid h-full min-w-0 column-stack",
           motionDirection === "left" && "week-slide-left",
           motionDirection === "right" && "week-slide-right",
         )}
-        style={{ gridTemplateColumns: `repeat(${dayKeys.length}, minmax(0, 1fr))` }}
+        style={
+          {
+            gridTemplateColumns: `repeat(${dayKeys.length}, minmax(var(--week-col-min, 0px), 1fr))`,
+            ["--week-column-count"]: dayKeys.length,
+          } as Record<string, string | number>
+        }
       >
         {dayKeys.map((dayKey, index) => (
           <WeekColumn

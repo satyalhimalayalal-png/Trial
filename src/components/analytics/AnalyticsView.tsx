@@ -183,7 +183,7 @@ export function AnalyticsView() {
       data-text-size={preferences.textSize}
       data-spacing={preferences.spacing}
       data-columns={preferences.columns}
-      className="app-shell min-h-screen tab-view-enter"
+      className="app-shell min-h-[100dvh] tab-view-enter"
     >
       <TopAccentBar
         mode="analytics"
@@ -193,7 +193,7 @@ export function AnalyticsView() {
 
       <div
         ref={prefsRef}
-        className="fixed right-3 z-50 w-[290px]"
+        className="fixed inset-x-2 z-50 w-auto sm:inset-x-auto sm:right-3 sm:w-[290px]"
         style={{ top: "calc(var(--ui-toolbar-height) + var(--ui-top-border-width) + 0.3333333333rem)" }}
       >
         {prefsOpen ? <PreferencesSidebar preferences={preferences} onPatch={patchPreferences} /> : null}
