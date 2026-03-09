@@ -15,7 +15,6 @@ const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
 const TOKEN_EXP_STORAGE_KEY = "cheqlist-google-access-exp";
 const EMAIL_STORAGE_KEY = "cheqlist-google-email";
 const KEEP_SIGNED_IN_KEY = "cheqlist-google-keep-signed-in";
-const PENDING_ANON_MERGE_KEY = "cheqlist-pending-anon-merge-v1";
 const ACTIVE_PROFILE_KEY = "cheqlist-active-profile";
 const ANON_PROFILE_ID = "anon";
 
@@ -32,11 +31,6 @@ interface GoogleTokenResponse {
 interface DriveFileMeta {
   id: string;
   modifiedTime?: string;
-}
-
-interface PendingAnonMergePayload {
-  targetProfileId: string;
-  backup: PlannerBackupV1;
 }
 
 function normalizeProfileValue(value: string): string {
@@ -108,15 +102,75 @@ function mergeById<T extends { id: string }>(local: T[], remote: T[], getUpdated
   return [...merged.values()];
 }
 
+function listIdentity(list: PlannerBackupV1["data"]["lists"][number]): string {
+  if (list.kind === "SYSTEM" && list.systemKey) {
+    return `SYSTEM:${list.systemKey}`;
+  }
+  return `LIST:${list.id}`;
+}
+
+function mergeListsAndBuildAliases(
+  local: PlannerBackupV1["data"]["lists"],
+  remote: PlannerBackupV1["data"]["lists"],
+): { lists: PlannerBackupV1["data"]["lists"]; aliases: Map<string, string> } {
+  const byIdentity = new Map<string, PlannerBackupV1["data"]["lists"][number]>();
+  const identityById = new Map<string, string>();
+  const ingest = (item: PlannerBackupV1["data"]["lists"][number]) => {
+    const identity = listIdentity(item);
+    identityById.set(item.id, identity);
+    const prev = byIdentity.get(identity);
+    if (!prev || toEpoch(item.updatedAt) >= toEpoch(prev.updatedAt)) {
+      byIdentity.set(identity, item);
+    }
+  };
+
+  for (const item of remote) ingest(item);
+  for (const item of local) ingest(item);
+
+  const canonicalIdByIdentity = new Map<string, string>();
+  for (const [identity, item] of byIdentity) {
+    canonicalIdByIdentity.set(identity, item.id);
+  }
+
+  const aliases = new Map<string, string>();
+  for (const [id, identity] of identityById) {
+    const canonical = canonicalIdByIdentity.get(identity);
+    if (canonical && canonical !== id) {
+      aliases.set(id, canonical);
+    }
+  }
+
+  return { lists: [...byIdentity.values()], aliases };
+}
+
 function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBackupV1): PlannerBackupV1 {
+  const { lists, aliases } = mergeListsAndBuildAliases(local.data.lists, remote.data.lists);
+  const normalizeTask = (item: PlannerBackupV1["data"]["tasks"][number]) => {
+    if (item.containerType !== "LIST") return item;
+    const canonicalId = aliases.get(item.containerId);
+    if (!canonicalId || canonicalId === item.containerId) return item;
+    return { ...item, containerId: canonicalId };
+  };
+  const normalizeSeries = (item: PlannerBackupV1["data"]["recurrenceSeries"][number]) => {
+    if (item.containerType !== "LIST") return item;
+    const canonicalId = aliases.get(item.containerId);
+    if (!canonicalId || canonicalId === item.containerId) return item;
+    return { ...item, containerId: canonicalId };
+  };
+
+  const localTasks = local.data.tasks.map(normalizeTask);
+  const remoteTasks = remote.data.tasks.map(normalizeTask);
+  const localSeries = local.data.recurrenceSeries.map(normalizeSeries);
+  const remoteSeries = remote.data.recurrenceSeries.map(normalizeSeries);
+
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
     data: {
-      tasks: mergeById(local.data.tasks, remote.data.tasks, (item) => item.updatedAt),
-      lists: mergeById(local.data.lists, remote.data.lists, (item) => item.updatedAt),
+      tasks: mergeById(localTasks, remoteTasks, (item) => item.updatedAt),
+      lists,
       preferences: mergeById(local.data.preferences, remote.data.preferences, (item) => item.updatedAt),
-      recurrenceSeries: mergeById(local.data.recurrenceSeries, remote.data.recurrenceSeries, (item) => item.updatedAt),
+      recurrenceSeries: mergeById(localSeries, remoteSeries, (item) => item.updatedAt),
       focusSessions: mergeById(local.data.focusSessions, remote.data.focusSessions, (item) => item.updatedAt),
     },
   };
@@ -273,8 +327,6 @@ export function GoogleDriveSyncButton({
   const tokenRef = useRef<string | null>(null);
   const tokenClientRef = useRef<GoogleTokenClient | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const silentAttemptRef = useRef(false);
-  const autoReconnectAttemptedRef = useRef(false);
 
   const disabled = useMemo(() => !clientId, [clientId]);
   const initials = (email?.trim().charAt(0) || "U").toUpperCase();
@@ -283,33 +335,25 @@ export function GoogleDriveSyncButton({
     setConnecting(false);
     const token = response.access_token;
     if (!token) {
-      if (silentAttemptRef.current) {
-        silentAttemptRef.current = false;
-        setStatus("Not connected");
-        return;
-      }
       if (response.error) setStatus(`Sign-in failed: ${response.error}`);
       return;
     }
-    silentAttemptRef.current = false;
     const expiresAt = Date.now() + (response.expires_in ?? 3600) * 1000;
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
-    localStorage.setItem(TOKEN_EXP_STORAGE_KEY, String(expiresAt));
     const nextEmail = await getEmail(token);
+    if (keepSignedIn) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      localStorage.setItem(TOKEN_EXP_STORAGE_KEY, String(expiresAt));
+    } else {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(TOKEN_EXP_STORAGE_KEY);
+      localStorage.removeItem(EMAIL_STORAGE_KEY);
+    }
     if (nextEmail) {
       setEmail(nextEmail);
-      localStorage.setItem(EMAIL_STORAGE_KEY, nextEmail);
+      if (keepSignedIn) localStorage.setItem(EMAIL_STORAGE_KEY, nextEmail);
       const nextProfileId = toProfileIdFromEmail(nextEmail);
       const currentProfileId = getActiveProfileId();
       if (nextProfileId !== currentProfileId) {
-        if (currentProfileId === ANON_PROFILE_ID) {
-          const anonBackup = await exportPlannerBackup();
-          const payload: PendingAnonMergePayload = {
-            targetProfileId: nextProfileId,
-            backup: anonBackup,
-          };
-          localStorage.setItem(PENDING_ANON_MERGE_KEY, JSON.stringify(payload));
-        }
         setActiveProfileId(nextProfileId);
         setStatus("Connected. Loading account...");
         window.location.reload();
@@ -329,8 +373,10 @@ export function GoogleDriveSyncButton({
 
   useEffect(() => {
     localStorage.setItem(KEEP_SIGNED_IN_KEY, keepSignedIn ? "1" : "0");
-    if (keepSignedIn) {
-      autoReconnectAttemptedRef.current = false;
+    if (!keepSignedIn) {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(TOKEN_EXP_STORAGE_KEY);
+      localStorage.removeItem(EMAIL_STORAGE_KEY);
     }
   }, [keepSignedIn]);
 
@@ -351,7 +397,7 @@ export function GoogleDriveSyncButton({
       const existingExp = Number(localStorage.getItem(TOKEN_EXP_STORAGE_KEY) ?? "0");
       const existingEmail = localStorage.getItem(EMAIL_STORAGE_KEY);
       if (existingEmail) setEmail(existingEmail);
-      if (existingToken && existingExp > Date.now()) {
+      if (keepSignedIn && existingToken && existingExp > Date.now()) {
         if (existingEmail) {
           const desiredProfileId = toProfileIdFromEmail(existingEmail);
           const activeProfileId = getActiveProfileId();
@@ -371,16 +417,7 @@ export function GoogleDriveSyncButton({
       cancelled = true;
       window.clearInterval(waitForGoogle);
     };
-  }, [clientId]);
-
-  useEffect(() => {
-    if (!ready || signedIn || !keepSignedIn || autoReconnectAttemptedRef.current) return;
-    if (!tokenClientRef.current) return;
-    autoReconnectAttemptedRef.current = true;
-    silentAttemptRef.current = true;
-    setConnecting(true);
-    tokenClientRef.current.requestAccessToken({ prompt: "" });
-  }, [ready, signedIn, keepSignedIn]);
+  }, [clientId, keepSignedIn]);
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -423,21 +460,7 @@ export function GoogleDriveSyncButton({
     setSyncing(true);
     try {
       const folderId = await ensureFolder(accessToken);
-      let local = await exportPlannerBackup();
-      const currentProfileId = getActiveProfileId();
-      const pendingRaw = localStorage.getItem(PENDING_ANON_MERGE_KEY);
-      if (pendingRaw) {
-        try {
-          const pending = JSON.parse(pendingRaw) as PendingAnonMergePayload;
-          if (pending?.targetProfileId === currentProfileId && pending.backup?.version === 1) {
-            local = mergePlannerBackups(local, pending.backup);
-            await importPlannerBackup(local);
-            localStorage.removeItem(PENDING_ANON_MERGE_KEY);
-          }
-        } catch {
-          localStorage.removeItem(PENDING_ANON_MERGE_KEY);
-        }
-      }
+      const local = await exportPlannerBackup();
       const remoteMeta = await findBackupFile(accessToken, folderId);
       if (!remoteMeta) {
         await uploadBackup(accessToken, local, folderId);
@@ -473,9 +496,8 @@ export function GoogleDriveSyncButton({
 
   const onConnect = () => {
     if (!tokenClientRef.current || connecting) return;
-    silentAttemptRef.current = false;
     setConnecting(true);
-    tokenClientRef.current.requestAccessToken({ prompt: keepSignedIn ? "select_account" : "consent select_account" });
+    tokenClientRef.current.requestAccessToken({ prompt: "consent select_account" });
   };
 
   const onDisconnect = () => {

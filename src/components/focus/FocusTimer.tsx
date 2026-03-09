@@ -42,13 +42,19 @@ export function FocusTimer() {
   const [draftBreak, setDraftBreak] = useState(DEFAULT_CONFIG.breakMinutes);
   const [remainingSec, setRemainingSec] = useState(DEFAULT_CONFIG.focusMinutes * 60);
   const [pomodoroRunning, setPomodoroRunning] = useState(false);
+  const [phaseEndsAtMs, setPhaseEndsAtMs] = useState<number | null>(null);
   const [pomodoroOwnsSession, setPomodoroOwnsSession] = useState(false);
   const [alertTone, setAlertTone] = useState<AlertTone>("synth-chime");
   const [uploadedToneDataUrl, setUploadedToneDataUrl] = useState<string | null>(null);
   const [uploadedToneName, setUploadedToneName] = useState<string | null>(null);
+  const remainingRef = useRef(remainingSec);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const defaultRingtoneRef = useRef<HTMLAudioElement | null>(null);
   const uploadedRingtoneRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    remainingRef.current = remainingSec;
+  }, [remainingSec]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -254,31 +260,39 @@ export function FocusTimer() {
   useEffect(() => {
     if (mode !== "pomodoro") {
       setPomodoroRunning(false);
+      setPhaseEndsAtMs(null);
       if (pomodoroOwnsSession && timer.active) {
         void timer.stop();
       }
       setPomodoroOwnsSession(false);
       return;
     }
-
-    if (pomodoroRunning) return;
-    setRemainingSec(phaseDurationSec);
-  }, [mode, pomodoroRunning, phaseDurationSec, pomodoroOwnsSession, timer.active, timer.stop]);
+  }, [mode, pomodoroOwnsSession, timer.active, timer.stop]);
 
   useEffect(() => {
-    if (mode !== "pomodoro" || !pomodoroRunning) return;
+    if (mode !== "pomodoro" || !pomodoroRunning) {
+      setPhaseEndsAtMs(null);
+      return;
+    }
+    const targetEndMs = phaseEndsAtMs ?? Date.now() + remainingRef.current * 1000;
+    if (phaseEndsAtMs === null) {
+      setPhaseEndsAtMs(targetEndMs);
+    }
 
-    const intervalId = window.setInterval(() => {
-      setRemainingSec((prev) => Math.max(0, prev - 1));
-    }, 1000);
-
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((targetEndMs - Date.now()) / 1000));
+      setRemainingSec(left);
+    };
+    tick();
+    const intervalId = window.setInterval(tick, 250);
     return () => window.clearInterval(intervalId);
-  }, [mode, pomodoroRunning]);
+  }, [mode, pomodoroRunning, phaseEndsAtMs]);
 
   useEffect(() => {
     if (mode !== "pomodoro" || !pomodoroRunning || remainingSec > 0) return;
 
     playPhaseEndRingtone();
+    setPhaseEndsAtMs(null);
 
     if (phase === "focus") {
       if (pomodoroOwnsSession && timer.active) {
@@ -288,6 +302,9 @@ export function FocusTimer() {
       setPhase("break");
       setRemainingSec(config.breakMinutes * 60);
       setPomodoroRunning(autoStartBreaks);
+      if (autoStartBreaks) {
+        setPhaseEndsAtMs(Date.now() + config.breakMinutes * 60 * 1000);
+      }
       return;
     }
 
@@ -299,6 +316,7 @@ export function FocusTimer() {
         setPomodoroOwnsSession(true);
       }
       setPomodoroRunning(true);
+      setPhaseEndsAtMs(Date.now() + config.focusMinutes * 60 * 1000);
       return;
     }
     setPomodoroRunning(false);
@@ -323,10 +341,17 @@ export function FocusTimer() {
       void timer.start();
       setPomodoroOwnsSession(true);
     }
+    const safeRemaining = Math.max(0, remainingSec);
+    setPhaseEndsAtMs(Date.now() + safeRemaining * 1000);
     setPomodoroRunning(true);
   };
 
   const pausePomodoro = () => {
+    if (phaseEndsAtMs !== null) {
+      const left = Math.max(0, Math.ceil((phaseEndsAtMs - Date.now()) / 1000));
+      setRemainingSec(left);
+    }
+    setPhaseEndsAtMs(null);
     if (phase === "focus" && pomodoroOwnsSession && timer.active) {
       void timer.stop();
     }
@@ -335,6 +360,7 @@ export function FocusTimer() {
   };
 
   const resetPomodoro = () => {
+    setPhaseEndsAtMs(null);
     if (phase === "focus" && pomodoroOwnsSession && timer.active) {
       void timer.stop();
     }
@@ -355,21 +381,39 @@ export function FocusTimer() {
     }
 
     setPhase(nextPhase);
-    setRemainingSec((nextPhase === "focus" ? config.focusMinutes : config.breakMinutes) * 60);
+    const nextRemaining = (nextPhase === "focus" ? config.focusMinutes : config.breakMinutes) * 60;
+    setRemainingSec(nextRemaining);
+    if (pomodoroRunning) {
+      setPhaseEndsAtMs(Date.now() + nextRemaining * 1000);
+    } else {
+      setPhaseEndsAtMs(null);
+    }
   };
 
   const applyConfig = () => {
     const nextFocus = Math.max(1, Math.min(180, Math.floor(draftFocus || 0)));
     const nextBreak = Math.max(1, Math.min(120, Math.floor(draftBreak || 0)));
     setConfig({ focusMinutes: nextFocus, breakMinutes: nextBreak });
-    setRemainingSec((phase === "focus" ? nextFocus : nextBreak) * 60);
+    const nextRemaining = (phase === "focus" ? nextFocus : nextBreak) * 60;
+    setRemainingSec(nextRemaining);
+    if (pomodoroRunning) {
+      setPhaseEndsAtMs(Date.now() + nextRemaining * 1000);
+    } else {
+      setPhaseEndsAtMs(null);
+    }
   };
 
   const applyPreset = (focusMinutes: number, breakMinutes: number) => {
     setDraftFocus(focusMinutes);
     setDraftBreak(breakMinutes);
     setConfig({ focusMinutes, breakMinutes });
-    setRemainingSec((phase === "focus" ? focusMinutes : breakMinutes) * 60);
+    const nextRemaining = (phase === "focus" ? focusMinutes : breakMinutes) * 60;
+    setRemainingSec(nextRemaining);
+    if (pomodoroRunning) {
+      setPhaseEndsAtMs(Date.now() + nextRemaining * 1000);
+    } else {
+      setPhaseEndsAtMs(null);
+    }
   };
 
   const expandedRingSize = "min(74dvh, 92vw)";

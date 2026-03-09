@@ -1,6 +1,19 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { FocusSession, PlannerList, RecurrenceSeries, Task, UserPreferences } from "@/types/domain";
 
+const ACTIVE_PROFILE_KEY = "cheqlist-active-profile";
+const ANON_PROFILE_ID = "anon";
+
+function getActiveProfileId(): string {
+  if (typeof window === "undefined") return ANON_PROFILE_ID;
+  return localStorage.getItem(ACTIVE_PROFILE_KEY) ?? ANON_PROFILE_ID;
+}
+
+function getDbNameForProfile(profileId: string): string {
+  if (profileId === ANON_PROFILE_ID) return "planner_v1";
+  return `planner_v1_${profileId}`;
+}
+
 class PlannerDB extends Dexie {
   tasks!: EntityTable<Task, "id">;
   lists!: EntityTable<PlannerList, "id">;
@@ -8,8 +21,8 @@ class PlannerDB extends Dexie {
   recurrenceSeries!: EntityTable<RecurrenceSeries, "id">;
   focusSessions!: EntityTable<FocusSession, "id">;
 
-  constructor() {
-    super("planner_v1");
+  constructor(dbName: string) {
+    super(dbName);
 
     this.version(1).stores({
       tasks: "id, [containerType+containerId+order], [containerType+containerId+completed], updatedAt",
@@ -46,10 +59,16 @@ class PlannerDB extends Dexie {
 }
 
 let dbSingleton: PlannerDB | null = null;
+let dbSingletonName: string | null = null;
 
 export function getDb(): PlannerDB {
-  if (!dbSingleton) {
-    dbSingleton = new PlannerDB();
+  const nextName = getDbNameForProfile(getActiveProfileId());
+  if (!dbSingleton || dbSingletonName !== nextName) {
+    if (dbSingleton) {
+      dbSingleton.close();
+    }
+    dbSingleton = new PlannerDB(nextName);
+    dbSingletonName = nextName;
   }
   return dbSingleton;
 }
