@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { exportPlannerBackup, getBackupTimestamp, importPlannerBackup, type PlannerBackupV1 } from "@/lib/googleDriveStore";
 
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata openid email profile";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file openid email profile";
+const DRIVE_FOLDER_NAME = "CHEQLIST";
 const DRIVE_FILE_NAME = "cheqlist-backup-v1.json";
 const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
 const TOKEN_EXP_STORAGE_KEY = "cheqlist-google-access-exp";
@@ -46,10 +47,47 @@ function getGoogleTokenClient(clientId: string, callback: (token: GoogleTokenRes
   }) ?? null;
 }
 
-async function findBackupFile(accessToken: string): Promise<DriveFileMeta | null> {
-  const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and 'appDataFolder' in parents and trashed=false`);
+async function findFolder(accessToken: string): Promise<DriveFileMeta | null> {
+  const q = encodeURIComponent(
+    `name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents`,
+  );
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${q}&spaces=appDataFolder&fields=files(id,modifiedTime)&pageSize=1`,
+    `https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,modifiedTime)&pageSize=1`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) throw new Error(`Drive list failed (${res.status})`);
+  const json = (await res.json()) as { files?: DriveFileMeta[] };
+  return json.files?.[0] ?? null;
+}
+
+async function createFolder(accessToken: string): Promise<string> {
+  const res = await fetch("https://www.googleapis.com/drive/v3/files", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: DRIVE_FOLDER_NAME,
+      mimeType: "application/vnd.google-apps.folder",
+      parents: ["root"],
+    }),
+  });
+  if (!res.ok) throw new Error(`Drive folder create failed (${res.status})`);
+  const json = (await res.json()) as { id: string };
+  return json.id;
+}
+
+async function ensureFolder(accessToken: string): Promise<string> {
+  const folder = await findFolder(accessToken);
+  if (folder?.id) return folder.id;
+  return createFolder(accessToken);
+}
+
+async function findBackupFile(accessToken: string, folderId: string): Promise<DriveFileMeta | null> {
+  const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and '${folderId}' in parents and trashed=false`);
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,modifiedTime)&pageSize=1`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
   if (!res.ok) throw new Error(`Drive list failed (${res.status})`);
@@ -65,11 +103,11 @@ async function downloadBackup(accessToken: string, fileId: string): Promise<Plan
   return (await res.json()) as PlannerBackupV1;
 }
 
-async function uploadBackup(accessToken: string, payload: PlannerBackupV1, fileId?: string): Promise<void> {
+async function uploadBackup(accessToken: string, payload: PlannerBackupV1, folderId: string, fileId?: string): Promise<void> {
   const boundary = `cheqlist_${Math.random().toString(36).slice(2)}`;
   const metadata = fileId
     ? { name: DRIVE_FILE_NAME, mimeType: "application/json" }
-    : { name: DRIVE_FILE_NAME, parents: ["appDataFolder"], mimeType: "application/json" };
+    : { name: DRIVE_FILE_NAME, parents: [folderId], mimeType: "application/json" };
 
   const body =
     `--${boundary}\r\n` +
@@ -105,7 +143,7 @@ async function getEmail(accessToken: string): Promise<string | null> {
   return data.email ?? null;
 }
 
-export function GoogleDriveSyncButton() {
+export function GoogleDriveSyncButton({ align = "left" }: { align?: "left" | "right" }) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -188,9 +226,10 @@ export function GoogleDriveSyncButton() {
     if (!accessToken) return;
     setSyncing(true);
     try {
+      const folderId = await ensureFolder(accessToken);
       const local = await exportPlannerBackup();
-      const remoteMeta = await findBackupFile(accessToken);
-      await uploadBackup(accessToken, local, remoteMeta?.id);
+      const remoteMeta = await findBackupFile(accessToken, folderId);
+      await uploadBackup(accessToken, local, folderId, remoteMeta?.id);
       setStatus(`Synced ${new Date().toLocaleTimeString()}`);
     } catch {
       setStatus("Sync failed");
@@ -204,10 +243,11 @@ export function GoogleDriveSyncButton() {
     if (!accessToken) return;
     setSyncing(true);
     try {
+      const folderId = await ensureFolder(accessToken);
       const local = await exportPlannerBackup();
-      const remoteMeta = await findBackupFile(accessToken);
+      const remoteMeta = await findBackupFile(accessToken, folderId);
       if (!remoteMeta) {
-        await uploadBackup(accessToken, local);
+        await uploadBackup(accessToken, local, folderId);
         setStatus("Connected and synced");
         return;
       }
@@ -218,7 +258,7 @@ export function GoogleDriveSyncButton() {
         await importPlannerBackup(remote);
         setStatus("Connected and restored");
       } else {
-        await uploadBackup(accessToken, local, remoteMeta.id);
+        await uploadBackup(accessToken, local, folderId, remoteMeta.id);
         setStatus("Connected and synced");
       }
     } catch {
@@ -269,7 +309,9 @@ export function GoogleDriveSyncButton() {
       </button>
 
       {menuOpen ? (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-[220px] rounded border border-theme surface p-2 text-xs shadow-lg">
+        <div
+          className={`absolute top-[calc(100%+6px)] z-50 min-w-[220px] rounded border border-theme surface p-2 text-xs shadow-lg ${align === "right" ? "right-0" : "left-0"}`}
+        >
           {disabled ? (
             <p className="text-muted">Google login unavailable. Set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`.</p>
           ) : signedIn ? (
@@ -305,4 +347,3 @@ export function GoogleDriveSyncButton() {
     </div>
   );
 }
-

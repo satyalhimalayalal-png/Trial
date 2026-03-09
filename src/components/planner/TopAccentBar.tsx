@@ -50,8 +50,20 @@ function IconChart() {
 function IconSettings() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" stroke="currentColor" strokeWidth="2" />
-      <path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4.8a7 7 0 0 0-1.7-1l-.3-2.5h-4l-.3 2.5a7 7 0 0 0-1.7 1l-2.4-.8-2 3.4L5.1 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-.8a7 7 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7 7 0 0 0 1.7-1l2.4.8 2-3.4-2-1.6c.1-.3.1-.7.1-1Z" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M11.983 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M19.4 15a1.03 1.03 0 0 0 .21 1.14l.04.04a1.25 1.25 0 1 1-1.77 1.77l-.04-.04a1.03 1.03 0 0 0-1.14-.21 1.03 1.03 0 0 0-.63.94V19a1.25 1.25 0 0 1-2.5 0v-.06a1.03 1.03 0 0 0-.63-.94 1.03 1.03 0 0 0-1.14.21l-.04.04a1.25 1.25 0 0 1-1.77-1.77l.04-.04a1.03 1.03 0 0 0 .21-1.14 1.03 1.03 0 0 0-.94-.63H9a1.25 1.25 0 0 1 0-2.5h.06a1.03 1.03 0 0 0 .94-.63 1.03 1.03 0 0 0-.21-1.14l-.04-.04a1.25 1.25 0 1 1 1.77-1.77l.04.04a1.03 1.03 0 0 0 1.14.21h.01a1.03 1.03 0 0 0 .62-.95V5a1.25 1.25 0 0 1 2.5 0v.06a1.03 1.03 0 0 0 .63.94h.01a1.03 1.03 0 0 0 1.14-.21l.04-.04a1.25 1.25 0 1 1 1.77 1.77l-.04.04a1.03 1.03 0 0 0-.21 1.14v.01a1.03 1.03 0 0 0 .95.62H21a1.25 1.25 0 1 1 0 2.5h-.06a1.03 1.03 0 0 0-.94.63V13a1.03 1.03 0 0 0 .4 2Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -92,7 +104,6 @@ export function TopAccentBar({ mode, rangeLabel, searchQuery, onSearchChange, on
       <div className="app-header-grid">
         <div className="min-w-0 justify-self-start">
           <div className="header-left-cluster">
-            <GoogleDriveSyncButton />
             {showSearch ? (
               <input
                 value={searchQuery ?? ""}
@@ -119,6 +130,7 @@ export function TopAccentBar({ mode, rangeLabel, searchQuery, onSearchChange, on
           <IconButton href="/" title="Planner" active={mode === "planner"} icon={<IconPlanner />} />
           <IconButton href="/focus" title="Focus" active={mode === "focus" || mode === "today"} icon={<IconClock />} />
           <IconButton href="/analytics" title="Analytics" active={mode === "analytics"} icon={<IconChart />} />
+          <GoogleDriveSyncButton align="right" />
           <IconButton title="Settings" onClick={onTogglePrefs} icon={<IconSettings />} />
         </div>
       </div>

@@ -26,11 +26,14 @@ function MiniBarChart({ points }: { points: Point[] }) {
   const max = Math.max(...points.map((point) => point.value), 1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
+  const initialPositionedRef = useRef(false);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; value: string; placement: "above" | "below" } | null>(null);
 
   useEffect(() => {
     if (!scrollRef.current) return;
+    if (initialPositionedRef.current) return;
     scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    initialPositionedRef.current = true;
   }, [points]);
 
   return (
@@ -51,6 +54,7 @@ function MiniBarChart({ points }: { points: Point[] }) {
                     y: rect.top - containerRect.top,
                     label: point.label,
                     value: formatSec(point.value),
+                    placement: rect.top - containerRect.top < 36 ? "below" : "above",
                   });
                 }}
                 onMouseLeave={() => setTooltip(null)}
@@ -61,7 +65,11 @@ function MiniBarChart({ points }: { points: Point[] }) {
         {tooltip ? (
           <div
             className="pointer-events-none absolute rounded border border-theme surface px-2 py-1 text-xs shadow"
-            style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -120%)" }}
+            style={{
+              left: tooltip.x,
+              top: tooltip.y,
+              transform: tooltip.placement === "above" ? "translate(-50%, -120%)" : "translate(-50%, 14%)",
+            }}
           >
             <div className="font-semibold">{tooltip.label}</div>
             <div className="text-muted">{tooltip.value}</div>
@@ -86,12 +94,13 @@ export function AnalyticsView() {
   const maxHour = Math.max(...hourTotals, 1);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("bar");
-  const [chartTooltip, setChartTooltip] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
+  const [chartTooltip, setChartTooltip] = useState<{ x: number; y: number; label: string; value: string; placement: "above" | "below" } | null>(null);
   const [selectedHeatCell, setSelectedHeatCell] = useState<{ dateKey: string; value: number } | null>(null);
 
   const prefsRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
   const heatmapScrollRef = useRef<HTMLDivElement | null>(null);
+  const initialHeatmapPositionedRef = useRef(false);
   const tooltipTimerRef = useRef<number | null>(null);
   const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const currentYearLabel = String(new Date().getFullYear());
@@ -146,11 +155,13 @@ export function AnalyticsView() {
 
   useEffect(() => {
     if (!heatmapScrollRef.current) return;
+    if (initialHeatmapPositionedRef.current) return;
     const tick = history.yearHeatmap.yearTicks.find((item) => item.label === currentYearLabel);
     if (!tick) return;
     const cellWidth = 0.72 * 16 + 4;
     const left = tick.weekIndex * cellWidth - 64;
     heatmapScrollRef.current.scrollLeft = Math.max(0, left);
+    initialHeatmapPositionedRef.current = true;
   }, [history.yearHeatmap.yearTicks, currentYearLabel]);
 
   const queueTooltip = (target: Element, hour: number, sec: number) => {
@@ -167,6 +178,7 @@ export function AnalyticsView() {
         y,
         label: `${hour.toString().padStart(2, "0")}:00`,
         value: formatSec(sec),
+        placement: y < 40 ? "below" : "above",
       });
     }, 140);
   };
@@ -299,7 +311,11 @@ export function AnalyticsView() {
               {chartTooltip ? (
                 <div
                   className="pointer-events-none absolute rounded border border-theme surface px-2 py-1 text-xs shadow"
-                  style={{ left: chartTooltip.x, top: chartTooltip.y, transform: "translate(-50%, -120%)" }}
+                  style={{
+                    left: chartTooltip.x,
+                    top: chartTooltip.y,
+                    transform: chartTooltip.placement === "above" ? "translate(-50%, -120%)" : "translate(-50%, 14%)",
+                  }}
                 >
                   <div className="font-semibold">{chartTooltip.label}</div>
                   <div className="text-muted">{chartTooltip.value}</div>
@@ -380,13 +396,18 @@ export function AnalyticsView() {
                             type="button"
                             className={`h-3 w-3 rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-offset-1 ring-offset-transparent ring-[var(--custom-color)]" : ""}`}
                             style={{
+                              borderColor: isSelected ? "var(--custom-color)" : undefined,
                               backgroundColor: cell.inRange
                                 ? sec > 0
                                   ? `color-mix(in oklab, #cf2d2d ${mixPercent}%, var(--app-background))`
                                   : "color-mix(in oklab, #8f959d 34%, var(--app-background))"
                                 : "var(--ui-button-bg-alt)",
                               opacity: cell.inRange ? 1 : 0.35,
-                              boxShadow: yearBreakWeeks.has(weekIndex) ? "inset 1px 0 0 color-mix(in oklab, #9aa0a8 65%, transparent)" : undefined,
+                              boxShadow: yearBreakWeeks.has(weekIndex) && !isSelected
+                                ? "inset 1px 0 0 color-mix(in oklab, #9aa0a8 65%, transparent)"
+                                : undefined,
+                              outline: isSelected ? "1px solid var(--custom-color)" : undefined,
+                              outlineOffset: "1px",
                             }}
                             onClick={() => setSelectedHeatCell({ dateKey: cell.dateKey, value: cell.value })}
                             aria-label={`${cell.dateKey}: ${formatSec(cell.value)}`}

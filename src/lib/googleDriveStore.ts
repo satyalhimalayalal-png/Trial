@@ -34,21 +34,19 @@ export async function exportPlannerBackup(): Promise<PlannerBackupV1> {
 
 export async function importPlannerBackup(payload: PlannerBackupV1): Promise<void> {
   const db = getDb();
-  await db.transaction("rw", db.tasks, db.lists, db.preferences, db.recurrenceSeries, db.focusSessions, async () => {
-    await Promise.all([
-      db.tasks.clear(),
-      db.lists.clear(),
-      db.preferences.clear(),
-      db.recurrenceSeries.clear(),
-      db.focusSessions.clear(),
-    ]);
+  await Promise.all([
+    db.tasks.clear(),
+    db.lists.clear(),
+    db.preferences.clear(),
+    db.recurrenceSeries.clear(),
+    db.focusSessions.clear(),
+  ]);
 
-    if (payload.data.tasks.length) await db.tasks.bulkPut(payload.data.tasks);
-    if (payload.data.lists.length) await db.lists.bulkPut(payload.data.lists);
-    if (payload.data.preferences.length) await db.preferences.bulkPut(payload.data.preferences);
-    if (payload.data.recurrenceSeries.length) await db.recurrenceSeries.bulkPut(payload.data.recurrenceSeries);
-    if (payload.data.focusSessions.length) await db.focusSessions.bulkPut(payload.data.focusSessions);
-  });
+  if (payload.data.tasks.length) await db.tasks.bulkPut(payload.data.tasks);
+  if (payload.data.lists.length) await db.lists.bulkPut(payload.data.lists);
+  if (payload.data.preferences.length) await db.preferences.bulkPut(payload.data.preferences);
+  if (payload.data.recurrenceSeries.length) await db.recurrenceSeries.bulkPut(payload.data.recurrenceSeries);
+  if (payload.data.focusSessions.length) await db.focusSessions.bulkPut(payload.data.focusSessions);
 }
 
 export function getBackupTimestamp(payload: PlannerBackupV1): number {
@@ -56,4 +54,3 @@ export function getBackupTimestamp(payload: PlannerBackupV1): number {
   if (!Number.isNaN(fromExport)) return fromExport;
   return 0;
 }
-
