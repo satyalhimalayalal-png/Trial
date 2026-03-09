@@ -16,6 +16,7 @@ const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
 const TOKEN_EXP_STORAGE_KEY = "cheqlist-google-access-exp";
 const EMAIL_STORAGE_KEY = "cheqlist-google-email";
 const KEEP_SIGNED_IN_KEY = "cheqlist-google-keep-signed-in";
+const PENDING_ANON_MERGE_KEY = "cheqlist-pending-anon-merge-v1";
 
 type GoogleTokenClient = {
   requestAccessToken: (args?: { prompt?: string }) => void;
@@ -30,6 +31,11 @@ interface GoogleTokenResponse {
 interface DriveFileMeta {
   id: string;
   modifiedTime?: string;
+}
+
+interface PendingAnonMergePayload {
+  targetProfileId: string;
+  backup: PlannerBackupV1;
 }
 
 async function readApiError(res: Response): Promise<string> {
@@ -93,6 +99,20 @@ function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBackupV1): P
       preferences: mergeById(local.data.preferences, remote.data.preferences, (item) => item.updatedAt),
       recurrenceSeries: mergeById(local.data.recurrenceSeries, remote.data.recurrenceSeries, (item) => item.updatedAt),
       focusSessions: mergeById(local.data.focusSessions, remote.data.focusSessions, (item) => item.updatedAt),
+    },
+  };
+}
+
+function createEmptyBackup(): PlannerBackupV1 {
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: {
+      tasks: [],
+      lists: [],
+      preferences: [],
+      recurrenceSeries: [],
+      focusSessions: [],
     },
   };
 }
@@ -263,6 +283,14 @@ export function GoogleDriveSyncButton({
       const nextProfileId = toProfileIdFromEmail(nextEmail);
       const currentProfileId = getActiveProfileId();
       if (nextProfileId !== currentProfileId) {
+        if (currentProfileId === ANON_PROFILE_ID) {
+          const anonBackup = await exportPlannerBackup();
+          const payload: PendingAnonMergePayload = {
+            targetProfileId: nextProfileId,
+            backup: anonBackup,
+          };
+          localStorage.setItem(PENDING_ANON_MERGE_KEY, JSON.stringify(payload));
+        }
         setActiveProfileId(nextProfileId);
         setStatus("Connected. Loading account...");
         window.location.reload();
@@ -376,7 +404,21 @@ export function GoogleDriveSyncButton({
     setSyncing(true);
     try {
       const folderId = await ensureFolder(accessToken);
-      const local = await exportPlannerBackup();
+      let local = await exportPlannerBackup();
+      const currentProfileId = getActiveProfileId();
+      const pendingRaw = localStorage.getItem(PENDING_ANON_MERGE_KEY);
+      if (pendingRaw) {
+        try {
+          const pending = JSON.parse(pendingRaw) as PendingAnonMergePayload;
+          if (pending?.targetProfileId === currentProfileId && pending.backup?.version === 1) {
+            local = mergePlannerBackups(local, pending.backup);
+            await importPlannerBackup(local);
+            localStorage.removeItem(PENDING_ANON_MERGE_KEY);
+          }
+        } catch {
+          localStorage.removeItem(PENDING_ANON_MERGE_KEY);
+        }
+      }
       const remoteMeta = await findBackupFile(accessToken, folderId);
       if (!remoteMeta) {
         await uploadBackup(accessToken, local, folderId);
@@ -430,6 +472,28 @@ export function GoogleDriveSyncButton({
     window.location.reload();
   };
 
+  const onResetData = async () => {
+    const confirmed = window.confirm("Reset all data for this profile? This cannot be undone.");
+    if (!confirmed) return;
+    setSyncing(true);
+    try {
+      const empty = createEmptyBackup();
+      await importPlannerBackup(empty);
+      const accessToken = tokenRef.current;
+      if (signedIn && accessToken) {
+        const folderId = await ensureFolder(accessToken);
+        const remoteMeta = await findBackupFile(accessToken, folderId);
+        await uploadBackup(accessToken, empty, folderId, remoteMeta?.id);
+      }
+      setStatus("Data reset");
+      window.location.reload();
+    } catch (error) {
+      setStatus(`Reset failed: ${summarizeError(error)}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (variant === "panel") {
     return (
       <div className="rounded border border-theme p-2 text-xs">
@@ -452,6 +516,9 @@ export function GoogleDriveSyncButton({
                 Logout
               </button>
             </div>
+            <button type="button" className="rounded border border-red-500 px-2 py-1 text-red-500" onClick={() => void onResetData()} disabled={syncing}>
+              Reset Data
+            </button>
             <p className="text-[11px] text-muted">{status}</p>
           </div>
         ) : (
@@ -464,6 +531,9 @@ export function GoogleDriveSyncButton({
               <input type="checkbox" checked={keepSignedIn} onChange={(event) => setKeepSignedIn(event.target.checked)} />
               Keep me signed in
             </label>
+            <button type="button" className="rounded border border-red-500 px-2 py-1 text-red-500" onClick={() => void onResetData()} disabled={syncing}>
+              Reset Data
+            </button>
             <p className="text-[11px] text-muted">{status}</p>
           </div>
         )}
@@ -506,6 +576,9 @@ export function GoogleDriveSyncButton({
                   Logout
                 </button>
               </div>
+              <button type="button" className="rounded border border-red-500 px-2 py-1 text-red-500" onClick={() => void onResetData()} disabled={syncing}>
+                Reset Data
+              </button>
               <p className="text-[11px] text-muted">{status}</p>
             </div>
           ) : (
@@ -518,6 +591,9 @@ export function GoogleDriveSyncButton({
                 <input type="checkbox" checked={keepSignedIn} onChange={(event) => setKeepSignedIn(event.target.checked)} />
                 Keep me signed in
               </label>
+              <button type="button" className="rounded border border-red-500 px-2 py-1 text-red-500" onClick={() => void onResetData()} disabled={syncing}>
+                Reset Data
+              </button>
               <p className="text-[11px] text-muted">{status}</p>
             </div>
           )}
