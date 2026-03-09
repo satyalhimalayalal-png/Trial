@@ -259,7 +259,7 @@ export function AnalyticsView() {
             <h2 className="text-sm font-semibold">Daily totals</h2>
             <button
               type="button"
-              className={`rounded border px-2 py-1 text-xs ${peakScope === "average" ? "border-[var(--custom-color)] text-[var(--custom-color)]" : "border-theme"}`}
+              className={`ui-chip-btn rounded border px-2 py-1 ${peakScope === "average" ? "border-[var(--custom-color)] text-[var(--custom-color)]" : "border-theme"}`}
               onClick={() => setPeakScope("average")}
             >
               Average
@@ -293,14 +293,14 @@ export function AnalyticsView() {
             <div className="inline-flex overflow-hidden rounded border border-theme">
               <button
                 type="button"
-                className={chartType === "bar" ? "bg-accent px-2 py-1 text-xs text-white" : "surface px-2 py-1 text-xs"}
+                className={chartType === "bar" ? "ui-chip-btn bg-accent px-2 py-1 text-white" : "ui-chip-btn surface px-2 py-1"}
                 onClick={() => setChartType("bar")}
               >
                 Bar
               </button>
               <button
                 type="button"
-                className={chartType === "line" ? "bg-accent px-2 py-1 text-xs text-white" : "surface px-2 py-1 text-xs"}
+                className={chartType === "line" ? "ui-chip-btn bg-accent px-2 py-1 text-white" : "ui-chip-btn surface px-2 py-1"}
                 onClick={() => setChartType("line")}
               >
                 Line

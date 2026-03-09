@@ -431,14 +431,14 @@ export function FocusTimer() {
         <div className="inline-flex overflow-hidden rounded border border-theme">
           <button
             type="button"
-            className={mode === "stopwatch" ? "bg-accent px-2 py-1 text-xs text-white" : "surface px-2 py-1 text-xs"}
+            className={mode === "stopwatch" ? "ui-chip-btn bg-accent px-2 py-1 text-white" : "ui-chip-btn surface px-2 py-1"}
             onClick={() => setMode("stopwatch")}
           >
             Stopwatch
           </button>
           <button
             type="button"
-            className={mode === "pomodoro" ? "bg-accent px-2 py-1 text-xs text-white" : "surface px-2 py-1 text-xs"}
+            className={mode === "pomodoro" ? "ui-chip-btn bg-accent px-2 py-1 text-white" : "ui-chip-btn surface px-2 py-1"}
             onClick={() => setMode("pomodoro")}
           >
             Pomodoro
@@ -451,7 +451,7 @@ export function FocusTimer() {
           <div className="flex flex-col items-center">
             <button
               type="button"
-              className={expanded ? "focus-timer-display cursor-pointer leading-none" : "focus-timer-display cursor-pointer text-2xl leading-none"}
+              className={expanded ? "focus-timer-display cursor-pointer leading-none" : "focus-timer-display cursor-pointer text-[2.2rem] leading-none"}
               style={expanded ? { fontSize: "clamp(5.5rem, 20vw, 14rem)", lineHeight: 1 } : undefined}
               onClick={() => setExpanded((prev) => !prev)}
               title={expanded ? "Minimize timer" : "Fullscreen timer"}
@@ -503,7 +503,7 @@ export function FocusTimer() {
                 <p className={expanded ? "focus-timer-phase text-base uppercase tracking-[0.1em] text-muted" : "focus-timer-phase text-xs uppercase tracking-[0.1em] text-muted"}>
                   {phase === "focus" ? "Work" : "Break"}
                 </p>
-                <p className={expanded ? "focus-timer-display text-7xl leading-none" : "focus-timer-display text-3xl leading-none"}>
+                <p className={expanded ? "focus-timer-display text-7xl leading-none" : "focus-timer-display text-[2.15rem] leading-none"}>
                   {formatDuration(remainingSec)}
                 </p>
               </div>
@@ -535,7 +535,7 @@ export function FocusTimer() {
             <div className="rounded border border-theme p-2">
               <button
                 type="button"
-                className="mb-2 flex w-full items-center justify-between text-xs uppercase text-muted"
+                className="ui-chip-btn mb-2 flex w-full items-center justify-between uppercase text-muted"
                 onClick={() => setPresetsOpen((prev) => !prev)}
                 aria-expanded={presetsOpen}
               >

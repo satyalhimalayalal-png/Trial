@@ -104,7 +104,7 @@
   --todo-border-color: #1b1c20;
   --task-grid-line-color: #2a2f36;
   --checklist-background: #171a20;
-  --checklist-inner-background: #141922;
+  --checklist-inner-background: #181f2b;
   --todo-checkbox: color-mix(in oklab, var(--custom-color) 50%, transparent);
   --todo-checkbox-done-color: #484848;
   --todo-button-bg: #484848;
@@ -375,7 +375,7 @@ textarea {
 
 .task-row {
   align-items: flex-start;
-  border-top: 1px solid transparent;
+  border-bottom: 1px solid var(--task-grid-line-color);
   display: flex;
   gap: 0.2222222222rem;
   min-height: var(--todo-item-height);
@@ -385,13 +385,9 @@ textarea {
   transition: background-color 0.2s ease;
 }
 
-.task-row + .task-row {
-  border-top-color: var(--task-grid-line-color);
-}
-
 .task-row-no-lines,
 .task-row-no-lines + .task-row-no-lines {
-  border-top-color: transparent;
+  border-bottom-color: transparent;
 }
 
 .task-row:hover {
@@ -462,7 +458,7 @@ textarea {
 
 .quick-add-line {
   background: transparent;
-  border-top: 1px solid var(--task-grid-line-color);
+  border-bottom: 1px solid var(--task-grid-line-color);
   color: var(--custom-color-text-light);
   height: var(--todo-item-height);
   padding: calc(var(--todo-item-spacing-y) - 0.0555555556rem) 0.5555555556rem;
@@ -843,6 +839,12 @@ textarea {
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   letter-spacing: 0.02em;
+}
+
+.ui-chip-btn {
+  font-family: var(--ff-sans-condensed);
+  font-size: 0.72rem;
+  letter-spacing: 0.045em;
 }
 
 @keyframes recurring-pulse {
