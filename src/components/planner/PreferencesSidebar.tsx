@@ -1,6 +1,7 @@
 "use client";
 
 import { GoogleDriveSyncButton } from "@/components/auth/GoogleDriveSyncButton";
+import { FriendsPanel } from "@/components/social/FriendsPanel";
 import type {
   AccentColor,
   BulletStyle,
@@ -136,6 +137,8 @@ export function PreferencesSidebar({ preferences, onPatch }: PreferencesSidebarP
           <GoogleDriveSyncButton variant="panel" />
         </div>
       </div>
+
+      <FriendsPanel />
 
       <ToggleRow label="Show completed" checked={preferences.showCompleted} onChange={(showCompleted) => void onPatch({ showCompleted })} />
       <ToggleRow label="Celebrations" checked={preferences.celebrations} onChange={(celebrations) => void onPatch({ celebrations })} />
