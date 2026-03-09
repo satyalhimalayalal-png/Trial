@@ -30,11 +30,23 @@ async function readApiError(res: Response): Promise<string> {
   try {
     const text = await res.text();
     if (!text) return fallback;
-    const parsed = JSON.parse(text) as
-      | { error?: { message?: string; status?: string } }
-      | { message?: string };
-    const message = parsed?.error?.message ?? parsed?.message;
-    const status = parsed?.error?.status;
+    const parsed = JSON.parse(text) as unknown;
+    let message: string | undefined;
+    let status: string | undefined;
+
+    if (parsed && typeof parsed === "object") {
+      const record = parsed as Record<string, unknown>;
+      const errorValue = record.error;
+      if (errorValue && typeof errorValue === "object") {
+        const errorRecord = errorValue as Record<string, unknown>;
+        message = typeof errorRecord.message === "string" ? errorRecord.message : undefined;
+        status = typeof errorRecord.status === "string" ? errorRecord.status : undefined;
+      }
+      if (!message && typeof record.message === "string") {
+        message = record.message;
+      }
+    }
+
     return status ? `${fallback} ${status}: ${message ?? "Unknown error"}` : `${fallback}: ${message ?? text}`;
   } catch {
     return fallback;
