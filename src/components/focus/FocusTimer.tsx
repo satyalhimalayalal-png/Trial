@@ -351,7 +351,7 @@ export function FocusTimer() {
           <div className="flex flex-col items-center">
             <button
               type="button"
-              className={expanded ? "focus-timer-display cursor-pointer text-7xl leading-none" : "focus-timer-display cursor-pointer text-[2rem] leading-none"}
+              className={expanded ? "focus-timer-display cursor-pointer text-8xl leading-none" : "focus-timer-display cursor-pointer text-[2.5rem] leading-none"}
               onClick={() => setExpanded((prev) => !prev)}
               title={expanded ? "Minimize timer" : "Fullscreen timer"}
             >
@@ -380,33 +380,35 @@ export function FocusTimer() {
           <div className="flex justify-center">
             <div
               className={`pomodoro-ring ${pomodoroRunning ? "pomodoro-ring-running" : ""}`}
+              onClick={() => setExpanded((prev) => !prev)}
+              title={expanded ? "Minimize timer" : "Fullscreen timer"}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setExpanded((prev) => !prev);
+                }
+              }}
               style={{
                 background: `conic-gradient(${ringFillColor} ${Math.round(phaseProgress * 360)}deg, ${ringTrackColor} 0deg)`,
                 ...(expanded ? { height: expandedRingSize, width: expandedRingSize, padding: "10px" } : {}),
+                cursor: "pointer",
               }}
             >
               <div
                 className="pomodoro-ring-core"
                 style={expanded ? { height: "calc(min(74dvh, 92vw) - 20px)", width: "calc(min(74dvh, 92vw) - 20px)" } : undefined}
               >
-                <p className="focus-timer-phase text-xs uppercase tracking-[0.1em] text-muted">
+                <p className={expanded ? "focus-timer-phase text-base uppercase tracking-[0.1em] text-muted" : "focus-timer-phase text-xs uppercase tracking-[0.1em] text-muted"}>
                   {phase === "focus" ? "Work" : "Break"}
                 </p>
-                <button
-                  type="button"
-                  className={expanded ? "focus-timer-display cursor-pointer text-7xl leading-none" : "focus-timer-display cursor-pointer text-[2.6rem] leading-none"}
-                  onClick={() => setExpanded((prev) => !prev)}
-                  title={expanded ? "Minimize timer" : "Fullscreen timer"}
-                >
+                <p className={expanded ? "focus-timer-display text-[clamp(4.5rem,11vw,9rem)] leading-none" : "focus-timer-display text-[3.25rem] leading-none"}>
                   {formatDuration(remainingSec)}
-                </button>
-                <button
-                  type="button"
-                  className="text-[10px] text-muted/80"
-                  onClick={() => setExpanded((prev) => !prev)}
-                >
+                </p>
+                <p className="text-[10px] text-muted/80">
                   {expanded ? "Tap time to minimize" : "Tap time to expand"}
-                </button>
+                </p>
               </div>
             </div>
           </div>
