@@ -316,11 +316,13 @@ export function FocusTimer() {
     setRemainingSec((phase === "focus" ? focusMinutes : breakMinutes) * 60);
   };
 
+  const expandedRingSize = "min(74dvh, 92vw)";
+
   return (
     <div
       className={
         expanded
-          ? "fixed inset-0 z-[260] overflow-y-auto surface p-4"
+          ? "fixed inset-0 z-[500] flex h-[100dvh] flex-col overflow-y-auto surface p-4"
           : "mb-4 rounded border border-theme surface p-3"
       }
     >
@@ -345,54 +347,66 @@ export function FocusTimer() {
       </div>
 
       {mode === "stopwatch" ? (
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
+        <div className={expanded ? "flex flex-1 flex-col items-center justify-center gap-5" : "flex items-center justify-between"}>
+          <div className="flex flex-col items-center">
             <button
               type="button"
-              className="focus-timer-display cursor-pointer text-2xl"
+              className={expanded ? "focus-timer-display cursor-pointer text-7xl leading-none" : "focus-timer-display cursor-pointer text-[2rem] leading-none"}
               onClick={() => setExpanded((prev) => !prev)}
               title={expanded ? "Minimize timer" : "Fullscreen timer"}
             >
               {formatDuration(timer.elapsedSec)}
             </button>
-            <p className="mt-0.5 text-[10px] text-muted/80">
+            <button
+              type="button"
+              className="mt-1 text-[10px] text-muted/80"
+              onClick={() => setExpanded((prev) => !prev)}
+            >
               {expanded ? "Tap time to minimize" : "Tap time to expand"}
-            </p>
+            </button>
           </div>
           {timer.active ? (
-            <button className="rounded border border-theme px-3 py-1" onClick={() => void timer.stop()}>
+            <button className={expanded ? "rounded border border-theme px-5 py-2 text-lg" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.stop()}>
               Stop
             </button>
           ) : (
-            <button className="rounded border border-theme px-3 py-1" onClick={() => void timer.start()}>
+            <button className={expanded ? "rounded border border-theme px-5 py-2 text-lg" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.start()}>
               Start
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className={expanded ? "flex flex-1 flex-col justify-center space-y-5" : "space-y-3"}>
           <div className="flex justify-center">
             <div
               className={`pomodoro-ring ${pomodoroRunning ? "pomodoro-ring-running" : ""}`}
               style={{
                 background: `conic-gradient(${ringFillColor} ${Math.round(phaseProgress * 360)}deg, ${ringTrackColor} 0deg)`,
+                ...(expanded ? { height: expandedRingSize, width: expandedRingSize, padding: "10px" } : {}),
               }}
             >
-              <div className="pomodoro-ring-core">
+              <div
+                className="pomodoro-ring-core"
+                style={expanded ? { height: "calc(min(74dvh, 92vw) - 20px)", width: "calc(min(74dvh, 92vw) - 20px)" } : undefined}
+              >
                 <p className="focus-timer-phase text-xs uppercase tracking-[0.1em] text-muted">
                   {phase === "focus" ? "Work" : "Break"}
                 </p>
                 <button
                   type="button"
-                  className="focus-timer-display cursor-pointer text-3xl"
+                  className={expanded ? "focus-timer-display cursor-pointer text-7xl leading-none" : "focus-timer-display cursor-pointer text-[2.6rem] leading-none"}
                   onClick={() => setExpanded((prev) => !prev)}
                   title={expanded ? "Minimize timer" : "Fullscreen timer"}
                 >
                   {formatDuration(remainingSec)}
                 </button>
-                <p className="text-[10px] text-muted/80">
+                <button
+                  type="button"
+                  className="text-[10px] text-muted/80"
+                  onClick={() => setExpanded((prev) => !prev)}
+                >
                   {expanded ? "Tap time to minimize" : "Tap time to expand"}
-                </p>
+                </button>
               </div>
             </div>
           </div>
@@ -427,7 +441,13 @@ export function FocusTimer() {
                 aria-expanded={presetsOpen}
               >
                 <span>Presets</span>
-                <span>{presetsOpen ? "˄" : "˅"}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  {presetsOpen ? (
+                    <path d="M18 15 12 9 6 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  ) : (
+                    <path d="M6 9 12 15 18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  )}
+                </svg>
               </button>
               {presetsOpen ? (
                 <>
