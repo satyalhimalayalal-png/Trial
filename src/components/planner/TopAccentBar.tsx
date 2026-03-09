@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { GoogleDriveSyncButton } from "@/components/auth/GoogleDriveSyncButton";
 
 type TopMode = "planner" | "focus" | "today" | "analytics";
 
@@ -90,19 +91,22 @@ export function TopAccentBar({ mode, rangeLabel, searchQuery, onSearchChange, on
     <div className="app-header-shell">
       <div className="app-header-grid">
         <div className="min-w-0 justify-self-start">
-          {showSearch ? (
-            <input
-              value={searchQuery ?? ""}
-              onChange={(event) => onSearchChange?.(event.target.value)}
-              placeholder="Search tasks"
-              className="ui-app-search max-w-[15rem]"
-              aria-label="Search tasks"
-            />
-          ) : rangeLabel ? (
-            <span className="block truncate text-[0.6111111111rem] font-bold uppercase tracking-[0.08em] text-muted">
-              {rangeLabel}
-            </span>
-          ) : null}
+          <div className="header-left-cluster">
+            <GoogleDriveSyncButton />
+            {showSearch ? (
+              <input
+                value={searchQuery ?? ""}
+                onChange={(event) => onSearchChange?.(event.target.value)}
+                placeholder="Search tasks"
+                className="ui-app-search max-w-[15rem] flex-1"
+                aria-label="Search tasks"
+              />
+            ) : rangeLabel ? (
+              <span className="block truncate text-[0.6111111111rem] font-bold uppercase tracking-[0.08em] text-muted">
+                {rangeLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <div className="justify-self-center">

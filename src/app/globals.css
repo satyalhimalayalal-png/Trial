@@ -330,6 +330,20 @@ textarea {
   box-shadow: 0 0 0 1px var(--todo-border-color);
 }
 
+.header-left-cluster {
+  align-items: center;
+  display: flex;
+  gap: 0.3333333333rem;
+  min-width: 0;
+}
+
+.user-account-btn {
+  border: 1px solid var(--todo-border-color);
+  font-family: var(--ff-sans-condensed);
+  font-size: 0.6666666667rem;
+  font-weight: 700;
+}
+
 .day-title,
 .list-title {
   font-family: var(--ff-sans-condensed);
