@@ -7,7 +7,6 @@ import {
   importPlannerBackup,
   type PlannerBackupV1,
 } from "@/lib/googleDriveStore";
-import { ANON_PROFILE_ID, getActiveProfileId, setActiveProfileId, toProfileIdFromEmail } from "@/lib/profileSession";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file openid email profile";
 const DRIVE_FOLDER_NAME = "CHEQLIST";
@@ -17,6 +16,8 @@ const TOKEN_EXP_STORAGE_KEY = "cheqlist-google-access-exp";
 const EMAIL_STORAGE_KEY = "cheqlist-google-email";
 const KEEP_SIGNED_IN_KEY = "cheqlist-google-keep-signed-in";
 const PENDING_ANON_MERGE_KEY = "cheqlist-pending-anon-merge-v1";
+const ACTIVE_PROFILE_KEY = "cheqlist-active-profile";
+const ANON_PROFILE_ID = "anon";
 
 type GoogleTokenClient = {
   requestAccessToken: (args?: { prompt?: string }) => void;
@@ -36,6 +37,24 @@ interface DriveFileMeta {
 interface PendingAnonMergePayload {
   targetProfileId: string;
   backup: PlannerBackupV1;
+}
+
+function normalizeProfileValue(value: string): string {
+  return value.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "_");
+}
+
+function toProfileIdFromEmail(email: string): string {
+  return `acct_${normalizeProfileValue(email)}`;
+}
+
+function getActiveProfileId(): string {
+  if (typeof window === "undefined") return ANON_PROFILE_ID;
+  return localStorage.getItem(ACTIVE_PROFILE_KEY) ?? ANON_PROFILE_ID;
+}
+
+function setActiveProfileId(profileId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(ACTIVE_PROFILE_KEY, profileId);
 }
 
 async function readApiError(res: Response): Promise<string> {
