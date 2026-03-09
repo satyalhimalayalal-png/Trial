@@ -247,6 +247,17 @@ export function useAnalyticsHistory() {
     return ranges.map((range) => ({ label: range.label, value: range.value }));
   }, [withRealtime]);
 
+  const hourTotals24 = useMemo(() => {
+    const totals = Array.from({ length: 24 }, () => 0);
+    for (const session of withRealtime) {
+      const sec = Math.max(0, session.durationSec ?? 0);
+      if (sec <= 0) continue;
+      const hour = new Date(session.startAt).getHours();
+      totals[hour] += sec;
+    }
+    return totals;
+  }, [withRealtime]);
+
   const sessionsForGantt = useMemo(() => {
     return withRealtime
       .map((session) => {
@@ -320,6 +331,8 @@ export function useAnalyticsHistory() {
       })
       .sort((a, b) => b - a)[0];
 
+    const yearHeatmapDays = historyYearHeatmapToDays(yearHeatmap.weeks);
+
     return {
       total_focus_minutes_7d: Math.round(focus7Sec / 60),
       total_focus_minutes_30d: Math.round(focus30Sec / 60),
@@ -328,9 +341,14 @@ export function useAnalyticsHistory() {
       pomodoros_completed_30d: pomodoros30,
       current_streak_days: currentStreak,
       longest_streak_days: longestStreak,
+      hour_totals_24: hourTotals24.map((value) => Math.round(value)),
+      daily_totals_30d: dailyFocus.map((point) => Math.round(point.value)),
+      weekly_totals_12w: weeklyFocus.map((point) => Math.round(point.value)),
+      monthly_totals_12m: monthlyFocus.map((point) => Math.round(point.value)),
+      year_heatmap_days: yearHeatmapDays,
       last_active_at: lastActiveSession ? new Date(lastActiveSession).toISOString() : null,
     };
-  }, [dayTotalsMap, totalFocusSec, withRealtime]);
+  }, [dayTotalsMap, totalFocusSec, withRealtime, hourTotals24, dailyFocus, weeklyFocus, monthlyFocus, yearHeatmap.weeks]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -384,4 +402,19 @@ export function useAnalyticsHistory() {
     tasksById,
     listsById,
   };
+}
+
+function historyYearHeatmapToDays(
+  weeks: Array<Array<{ dateKey: string; value: number; inRange: boolean }>>,
+): Array<{ dateKey: string; value: number }> {
+  const byDate = new Map<string, number>();
+  for (const week of weeks) {
+    for (const cell of week) {
+      if (!cell.inRange) continue;
+      byDate.set(cell.dateKey, Math.round(cell.value));
+    }
+  }
+  return [...byDate.entries()]
+    .map(([dateKey, value]) => ({ dateKey, value }))
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
 }

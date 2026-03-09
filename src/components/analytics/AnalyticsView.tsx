@@ -7,6 +7,7 @@ import { useAnalyticsHistory } from "@/hooks/useAnalyticsHistory";
 import { usePreferences } from "@/hooks/usePreferences";
 import { TopAccentBar } from "@/components/planner/TopAccentBar";
 import { PreferencesSidebar } from "@/components/planner/PreferencesSidebar";
+import { AccountSidebar } from "@/components/account/AccountSidebar";
 
 function formatSec(sec: number): string {
   const h = Math.floor(sec / 3600);
@@ -93,11 +94,12 @@ export function AnalyticsView() {
   const maxDaily = Math.max(...dailyTotals, 1);
   const maxHour = Math.max(...hourTotals, 1);
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("bar");
   const [chartTooltip, setChartTooltip] = useState<{ x: number; y: number; label: string; value: string; placement: "above" | "below" } | null>(null);
   const [selectedHeatCell, setSelectedHeatCell] = useState<{ dateKey: string; value: number } | null>(null);
 
-  const prefsRef = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
   const heatmapScrollRef = useRef<HTMLDivElement | null>(null);
   const initialHeatmapPositionedRef = useRef(false);
@@ -138,9 +140,10 @@ export function AnalyticsView() {
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
-      if (!prefsRef.current) return;
-      if (prefsRef.current.contains(event.target as Node)) return;
+      if (!popoverRef.current) return;
+      if (popoverRef.current.contains(event.target as Node)) return;
       setPrefsOpen(false);
+      setAccountOpen(false);
     };
 
     window.addEventListener("mousedown", handleClick);
@@ -200,15 +203,25 @@ export function AnalyticsView() {
       <TopAccentBar
         mode="analytics"
         rangeLabel={`Week of ${format(weekStart, "MMM d, yyyy")}`}
-        onTogglePrefs={() => setPrefsOpen((prev) => !prev)}
+        onTogglePrefs={() => {
+          setPrefsOpen((prev) => !prev);
+          setAccountOpen(false);
+        }}
+        onToggleAccount={() => {
+          setAccountOpen((prev) => !prev);
+          setPrefsOpen(false);
+        }}
+        prefsOpen={prefsOpen}
+        accountOpen={accountOpen}
       />
 
       <div
-        ref={prefsRef}
+        ref={popoverRef}
         className="fixed inset-x-2 z-50 max-h-[calc(100dvh-var(--ui-toolbar-height)-0.75rem)] w-auto overflow-hidden sm:inset-x-auto sm:right-3 sm:w-[290px]"
         style={{ top: "calc(var(--ui-toolbar-height) + var(--ui-top-border-width) + 0.3333333333rem)" }}
       >
         {prefsOpen ? <PreferencesSidebar preferences={preferences} onPatch={patchPreferences} /> : null}
+        {accountOpen ? <AccountSidebar /> : null}
       </div>
 
       <div className="planner-main-shell overflow-y-auto px-4 pt-3 pb-4">

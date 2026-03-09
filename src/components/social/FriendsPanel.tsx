@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { PrivacySettings, SharedStatsSnapshot, SocialUser } from "@/types/social";
 
 const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
@@ -135,12 +136,12 @@ export function FriendsPanel() {
     setBusy(true);
     try {
       const payload = { action: "send", recipientUsername: recipientUsername.trim() };
-      const response = await socialFetch<{ autoAccepted?: boolean }>("/api/social/requests", {
+      await socialFetch<{ autoAccepted?: boolean }>("/api/social/requests", {
         method: "POST",
         body: JSON.stringify(payload),
       });
       setRecipientUsername("");
-      setStatus(response.autoAccepted ? "Cross request found. Friendship confirmed." : "Friend request sent.");
+      setStatus("Friend request sent.");
       await refreshSocial();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to send friend request");
@@ -358,11 +359,16 @@ export function FriendsPanel() {
               {friends.map((friend) => (
                 <div key={friend.user.id} className="rounded border border-theme p-2">
                   <p className="truncate">{friend.user.display_name ?? `@${friend.user.username}`}</p>
-                  <p className="truncate text-muted">@{friend.user.username}</p>
+                  <Link href={`/analytics/friend/${friend.user.id}`} className="truncate text-[var(--custom-color)] hover:underline">
+                    @{friend.user.username}
+                  </Link>
                   <p className="text-muted">
                     7d: {formatMinutes(friend.stats?.total_focus_minutes_7d)} | 30d: {formatMinutes(friend.stats?.total_focus_minutes_30d)}
                   </p>
-                  <div className="mt-1">
+                  <div className="mt-1 flex items-center gap-1">
+                    <Link href={`/analytics/friend/${friend.user.id}`} className="rounded border border-theme px-2 py-1">
+                      View analytics
+                    </Link>
                     <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void removeFriend(friend.user.id)} disabled={busy || !canUseFriends}>
                       Remove
                     </button>

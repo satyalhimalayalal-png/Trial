@@ -79,6 +79,33 @@ function ensureNonNegativeInt(value: unknown, field: string): number {
   return Math.round(n);
 }
 
+function normalizeNumberArray(
+  value: unknown,
+  length: number,
+  field: string,
+): number[] {
+  if (!Array.isArray(value)) throw new Error(`Invalid ${field}`);
+  if (value.length !== length) throw new Error(`Invalid ${field} length`);
+  return value.map((item, index) => ensureNonNegativeInt(item, `${field}[${index}]`));
+}
+
+function normalizeYearHeatmapDays(value: unknown): Array<{ dateKey: string; value: number }> {
+  if (!Array.isArray(value)) throw new Error("Invalid year_heatmap_days");
+  if (value.length > 1200) throw new Error("Invalid year_heatmap_days length");
+  return value
+    .map((entry, index) => {
+      if (!entry || typeof entry !== "object") throw new Error(`Invalid year_heatmap_days[${index}]`);
+      const row = entry as { dateKey?: unknown; value?: unknown };
+      const dateKey = typeof row.dateKey === "string" ? row.dateKey : "";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) throw new Error(`Invalid year_heatmap_days[${index}].dateKey`);
+      return {
+        dateKey,
+        value: ensureNonNegativeInt(row.value ?? 0, `year_heatmap_days[${index}].value`),
+      };
+    })
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+}
+
 export interface ViewerContext {
   token: string;
   identity: GoogleIdentity;
@@ -262,8 +289,7 @@ export async function sendFriendRequest(senderId: string, recipientIdentifierRaw
     .maybeSingle();
   if (reverseError) throw new Error(reverseError.message);
   if (reversePending) {
-    const accepted = await acceptFriendRequest(senderId, reversePending.id);
-    return { request: accepted, autoAccepted: true };
+    throw new Error("This user already sent you a request. Open Incoming and accept or decline.");
   }
 
   const { data: inserted, error: insertError } = await supabaseAdmin
@@ -535,6 +561,11 @@ export async function upsertSharedStatsSnapshot(
     pomodoros_completed_30d: ensureNonNegativeInt(payload.pomodoros_completed_30d ?? 0, "pomodoros_completed_30d"),
     current_streak_days: ensureNonNegativeInt(payload.current_streak_days ?? 0, "current_streak_days"),
     longest_streak_days: ensureNonNegativeInt(payload.longest_streak_days ?? 0, "longest_streak_days"),
+    hour_totals_24: normalizeNumberArray(payload.hour_totals_24 ?? Array.from({ length: 24 }, () => 0), 24, "hour_totals_24"),
+    daily_totals_30d: normalizeNumberArray(payload.daily_totals_30d ?? Array.from({ length: 30 }, () => 0), 30, "daily_totals_30d"),
+    weekly_totals_12w: normalizeNumberArray(payload.weekly_totals_12w ?? Array.from({ length: 12 }, () => 0), 12, "weekly_totals_12w"),
+    monthly_totals_12m: normalizeNumberArray(payload.monthly_totals_12m ?? Array.from({ length: 12 }, () => 0), 12, "monthly_totals_12m"),
+    year_heatmap_days: normalizeYearHeatmapDays(payload.year_heatmap_days ?? []),
     last_active_at: payload.last_active_at ?? null,
     updated_at: now,
   };

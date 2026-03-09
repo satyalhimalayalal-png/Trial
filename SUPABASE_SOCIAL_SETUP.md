@@ -16,6 +16,7 @@ Run the SQL migration:
 - `supabase/migrations/20260309_000001_social_friends_system.sql`
 - `supabase/migrations/20260309_000002_social_usernames.sql`
 - `supabase/migrations/20260310_000003_social_username_custom_flag.sql`
+- `supabase/migrations/20260310_000004_social_shared_stats_details.sql`
 
 This creates:
 

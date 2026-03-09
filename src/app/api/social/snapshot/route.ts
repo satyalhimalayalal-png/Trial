@@ -13,6 +13,11 @@ export async function POST(request: Request) {
       pomodoros_completed_30d?: number;
       current_streak_days?: number;
       longest_streak_days?: number;
+      hour_totals_24?: number[];
+      daily_totals_30d?: number[];
+      weekly_totals_12w?: number[];
+      monthly_totals_12m?: number[];
+      year_heatmap_days?: Array<{ dateKey: string; value: number }>;
       last_active_at?: string | null;
     };
     const snapshot = await upsertSharedStatsSnapshot(viewer.user.id, payload);

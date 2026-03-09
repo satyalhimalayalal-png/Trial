@@ -11,6 +11,7 @@ import { BottomListsRow } from "@/components/planner/BottomListsRow";
 import { formatRangeLabel } from "@/components/planner/PlannerHeader";
 import { WeekGrid } from "@/components/planner/WeekGrid";
 import { PreferencesSidebar } from "@/components/planner/PreferencesSidebar";
+import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { TaskListColumn } from "@/components/planner/TaskListColumn";
 import { TopAccentBar } from "@/components/planner/TopAccentBar";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -122,13 +123,15 @@ function PlannerChrome({
   onPatchPreferences: ReturnType<typeof usePreferences>["patchPreferences"];
 }) {
   const [prefsOpen, setPrefsOpen] = useState(false);
-  const prefsRef = useRef<HTMLDivElement | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
-      if (!prefsRef.current) return;
-      if (prefsRef.current.contains(event.target as Node)) return;
+      if (!popoverRef.current) return;
+      if (popoverRef.current.contains(event.target as Node)) return;
       setPrefsOpen(false);
+      setAccountOpen(false);
     };
 
     window.addEventListener("mousedown", handleClick);
@@ -149,15 +152,25 @@ function PlannerChrome({
         rangeLabel={rangeLabel}
         searchQuery={searchQuery}
         onSearchChange={onSearchChange}
-        onTogglePrefs={() => setPrefsOpen((prev) => !prev)}
+        onTogglePrefs={() => {
+          setPrefsOpen((prev) => !prev);
+          setAccountOpen(false);
+        }}
+        onToggleAccount={() => {
+          setAccountOpen((prev) => !prev);
+          setPrefsOpen(false);
+        }}
+        prefsOpen={prefsOpen}
+        accountOpen={accountOpen}
       />
 
       <div
-        ref={prefsRef}
+        ref={popoverRef}
         className="fixed inset-x-2 z-50 max-h-[calc(100dvh-var(--ui-toolbar-height)-0.75rem)] w-auto overflow-hidden sm:inset-x-auto sm:right-3 sm:w-[290px]"
         style={{ top: "calc(var(--ui-toolbar-height) + var(--ui-top-border-width) + 0.3333333333rem)" }}
       >
         {prefsOpen ? <PreferencesSidebar preferences={preferences} onPatch={onPatchPreferences} /> : null}
+        {accountOpen ? <AccountSidebar /> : null}
       </div>
 
       <div className="planner-main-shell">{children}</div>

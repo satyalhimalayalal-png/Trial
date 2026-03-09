@@ -659,6 +659,10 @@ textarea {
 }
 
 @media (max-width: 48em) {
+  .lines-backdrop {
+    background-image: none;
+  }
+
   .planner-main-shell {
     height: 100dvh;
   }

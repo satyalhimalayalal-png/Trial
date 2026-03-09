@@ -10,6 +10,9 @@ interface TopAccentBarProps {
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
   onTogglePrefs: () => void;
+  onToggleAccount: () => void;
+  prefsOpen?: boolean;
+  accountOpen?: boolean;
 }
 
 function IconShell({ children, active = false }: { children: React.ReactNode; active?: boolean }) {
@@ -62,6 +65,15 @@ function IconSettings() {
   );
 }
 
+function IconUser() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 20c1.8-3.7 5-5.5 8-5.5s6.2 1.8 8 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconButton({
   icon,
   title,
@@ -90,7 +102,16 @@ function IconButton({
   );
 }
 
-export function TopAccentBar({ mode, rangeLabel, searchQuery, onSearchChange, onTogglePrefs }: TopAccentBarProps) {
+export function TopAccentBar({
+  mode,
+  rangeLabel,
+  searchQuery,
+  onSearchChange,
+  onTogglePrefs,
+  onToggleAccount,
+  prefsOpen = false,
+  accountOpen = false,
+}: TopAccentBarProps) {
   const showSearch = mode === "planner" && Boolean(onSearchChange);
 
   return (
@@ -124,7 +145,8 @@ export function TopAccentBar({ mode, rangeLabel, searchQuery, onSearchChange, on
           <IconButton href="/" title="Planner" active={mode === "planner"} icon={<IconPlanner />} />
           <IconButton href="/focus" title="Focus" active={mode === "focus" || mode === "today"} icon={<IconClock />} />
           <IconButton href="/analytics" title="Analytics" active={mode === "analytics"} icon={<IconChart />} />
-          <IconButton title="Settings" onClick={onTogglePrefs} icon={<IconSettings />} />
+          <IconButton title="Account" onClick={onToggleAccount} icon={<IconUser />} active={accountOpen} />
+          <IconButton title="Settings" onClick={onTogglePrefs} icon={<IconSettings />} active={prefsOpen} />
         </div>
       </div>
     </div>
