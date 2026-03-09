@@ -54,6 +54,8 @@ export function FriendsPanel() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string>("");
+  const [viewer, setViewer] = useState<SocialUser | null>(null);
+  const [usernameDraft, setUsernameDraft] = useState("");
   const [recipientUsername, setRecipientUsername] = useState("");
   const [friends, setFriends] = useState<FriendWithSnapshot[]>([]);
   const [incoming, setIncoming] = useState<PendingIncoming[]>([]);
@@ -63,6 +65,7 @@ export function FriendsPanel() {
   );
 
   const authenticated = useMemo(() => Boolean(token), [token]);
+  const canUseFriends = Boolean(viewer?.username_is_custom);
 
   const socialFetch = useCallback(
     async <T,>(path: string, init?: RequestInit): Promise<T> => {
@@ -87,7 +90,9 @@ export function FriendsPanel() {
     if (!token) return;
     setLoading(true);
     try {
-      await socialFetch<{ user: SocialUser }>("/api/social/me");
+      const meRes = await socialFetch<{ user: SocialUser }>("/api/social/me");
+      setViewer(meRes.user);
+      setUsernameDraft(meRes.user.username);
 
       const [friendsRes, requestsRes, privacyRes] = await Promise.all([
         socialFetch<{ friends: FriendWithSnapshot[] }>("/api/social/friends"),
@@ -122,6 +127,10 @@ export function FriendsPanel() {
   }, [token, refreshSocial]);
 
   const sendRequest = async () => {
+    if (!canUseFriends) {
+      setStatus("Set your custom username first.");
+      return;
+    }
     if (!recipientUsername.trim()) return;
     setBusy(true);
     try {
@@ -135,6 +144,25 @@ export function FriendsPanel() {
       await refreshSocial();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to send friend request");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveUsername = async () => {
+    if (!usernameDraft.trim()) return;
+    setBusy(true);
+    try {
+      const res = await socialFetch<{ user: SocialUser }>("/api/social/me", {
+        method: "PATCH",
+        body: JSON.stringify({ username: usernameDraft.trim() }),
+      });
+      setViewer(res.user);
+      setUsernameDraft(res.user.username);
+      setStatus(`Username updated: @${res.user.username}`);
+      await refreshSocial();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to update username");
     } finally {
       setBusy(false);
     }
@@ -202,6 +230,25 @@ export function FriendsPanel() {
       ) : (
         <div className="mt-2 space-y-3">
           <div>
+            <p className="text-muted">Your username</p>
+            <div className="mt-1 flex items-center gap-1">
+              <input
+                value={usernameDraft}
+                onChange={(event) => setUsernameDraft(event.target.value)}
+                placeholder="choose_username"
+                className="w-full rounded border border-theme surface px-2 py-1"
+              />
+              <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void saveUsername()} disabled={busy || loading}>
+                Save
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-muted">
+              Visible as @{viewer?.username ?? "username"}. Allowed: a-z 0-9 . _ - (3-32 chars)
+            </p>
+            {!canUseFriends ? <p className="mt-1 text-[11px] text-red-400">Set a custom username to start using friends.</p> : null}
+          </div>
+
+          <div>
             <p className="text-muted">Add friend by username</p>
             <div className="mt-1 flex items-center gap-1">
               <input
@@ -210,7 +257,12 @@ export function FriendsPanel() {
                 placeholder="@username"
                 className="w-full rounded border border-theme surface px-2 py-1"
               />
-              <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void sendRequest()} disabled={busy || loading}>
+              <button
+                type="button"
+                className="rounded border border-theme px-2 py-1"
+                onClick={() => void sendRequest()}
+                disabled={busy || loading || !canUseFriends}
+              >
                 Send
               </button>
             </div>
@@ -269,10 +321,10 @@ export function FriendsPanel() {
                   <p className="truncate">{request.sender.display_name ?? `@${request.sender.username}`}</p>
                   <p className="truncate text-muted">@{request.sender.username}</p>
                   <div className="mt-1 flex items-center gap-1">
-                    <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void resolveRequest(request.id, "accept")} disabled={busy}>
+                    <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void resolveRequest(request.id, "accept")} disabled={busy || !canUseFriends}>
                       Accept
                     </button>
-                    <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void resolveRequest(request.id, "decline")} disabled={busy}>
+                    <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void resolveRequest(request.id, "decline")} disabled={busy || !canUseFriends}>
                       Decline
                     </button>
                   </div>
@@ -290,7 +342,7 @@ export function FriendsPanel() {
                   <p className="truncate">{request.recipient.display_name ?? `@${request.recipient.username}`}</p>
                   <p className="truncate text-muted">@{request.recipient.username}</p>
                   <div className="mt-1">
-                    <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void resolveRequest(request.id, "cancel")} disabled={busy}>
+                    <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void resolveRequest(request.id, "cancel")} disabled={busy || !canUseFriends}>
                       Cancel
                     </button>
                   </div>
@@ -311,7 +363,7 @@ export function FriendsPanel() {
                     7d: {formatMinutes(friend.stats?.total_focus_minutes_7d)} | 30d: {formatMinutes(friend.stats?.total_focus_minutes_30d)}
                   </p>
                   <div className="mt-1">
-                    <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void removeFriend(friend.user.id)} disabled={busy}>
+                    <button type="button" className="rounded border border-theme px-2 py-1" onClick={() => void removeFriend(friend.user.id)} disabled={busy || !canUseFriends}>
                       Remove
                     </button>
                   </div>

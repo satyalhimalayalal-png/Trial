@@ -15,6 +15,7 @@ Run the SQL migration:
 
 - `supabase/migrations/20260309_000001_social_friends_system.sql`
 - `supabase/migrations/20260309_000002_social_usernames.sql`
+- `supabase/migrations/20260310_000003_social_username_custom_flag.sql`
 
 This creates:
 
@@ -30,6 +31,7 @@ This creates:
 All APIs require `Authorization: Bearer <google_access_token>`.
 
 - `GET /api/social/me` -> provision/check internal user
+- `PATCH /api/social/me` body `{ "username": "your_name" }` -> set/change custom username
 - `GET /api/social/friends` -> list confirmed friends (+ friend-visible stats)
 - `GET /api/social/requests` -> incoming/outgoing pending requests
 - `POST /api/social/requests` actions:

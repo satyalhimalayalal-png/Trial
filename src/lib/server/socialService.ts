@@ -31,6 +31,14 @@ function ensureUsername(value: string): string {
   return username.slice(0, 32);
 }
 
+function validateUsername(value: string): string {
+  const username = ensureUsername(value);
+  if (!/^[a-z0-9._-]{3,32}$/.test(username)) {
+    throw new Error("Invalid username. Use 3-32 chars: a-z 0-9 . _ -");
+  }
+  return username;
+}
+
 async function generateAvailableUsername(seedRaw: string): Promise<string> {
   const seed = ensureUsername(seedRaw);
   for (let i = 0; i < 100; i += 1) {
@@ -126,6 +134,7 @@ export async function provisionAppUser(identity: GoogleIdentity): Promise<Social
       .insert({
         google_email: email,
         username,
+        username_is_custom: false,
         display_name: identity.name ?? null,
         avatar_url: identity.picture ?? null,
         updated_at: nowIso,
@@ -592,4 +601,31 @@ export async function getProfileForViewer(viewerId: string, targetUserId: string
     can_view_stats: canViewStats,
     stats,
   };
+}
+
+export async function updateUsername(userId: string, desiredUsernameRaw: string): Promise<SocialUser> {
+  const desiredUsername = validateUsername(desiredUsernameRaw.trim());
+
+  const { data: conflict, error: conflictError } = await supabaseAdmin
+    .from("app_users")
+    .select("id")
+    .eq("username", desiredUsername)
+    .neq("id", userId)
+    .maybeSingle();
+  if (conflictError) throw new Error(conflictError.message);
+  if (conflict) throw new Error("Username already taken");
+
+  const { data, error } = await supabaseAdmin
+    .from("app_users")
+    .update({
+      username: desiredUsername,
+      username_is_custom: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .select("*")
+    .single();
+
+  if (error || !data) throw new Error(error?.message ?? "Failed to update username");
+  return data;
 }
