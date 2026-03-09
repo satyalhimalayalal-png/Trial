@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  createEmptyBackup,
   exportPlannerBackup,
   getBackupTimestamp,
   importPlannerBackup,
+  mergePlannerBackups,
   type PlannerBackupV1,
 } from "@/lib/googleDriveStore";
 
@@ -82,112 +84,6 @@ async function readApiError(res: Response): Promise<string> {
 function summarizeError(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
   return "Unknown error";
-}
-
-function toEpoch(value: string | undefined): number {
-  if (!value) return 0;
-  const ts = Date.parse(value);
-  return Number.isNaN(ts) ? 0 : ts;
-}
-
-function mergeById<T extends { id: string }>(local: T[], remote: T[], getUpdatedAt: (item: T) => string): T[] {
-  const merged = new Map<string, T>();
-  for (const item of remote) merged.set(item.id, item);
-  for (const item of local) {
-    const prev = merged.get(item.id);
-    if (!prev || toEpoch(getUpdatedAt(item)) >= toEpoch(getUpdatedAt(prev))) {
-      merged.set(item.id, item);
-    }
-  }
-  return [...merged.values()];
-}
-
-function listIdentity(list: PlannerBackupV1["data"]["lists"][number]): string {
-  if (list.kind === "SYSTEM" && list.systemKey) {
-    return `SYSTEM:${list.systemKey}`;
-  }
-  return `LIST:${list.id}`;
-}
-
-function mergeListsAndBuildAliases(
-  local: PlannerBackupV1["data"]["lists"],
-  remote: PlannerBackupV1["data"]["lists"],
-): { lists: PlannerBackupV1["data"]["lists"]; aliases: Map<string, string> } {
-  const byIdentity = new Map<string, PlannerBackupV1["data"]["lists"][number]>();
-  const identityById = new Map<string, string>();
-  const ingest = (item: PlannerBackupV1["data"]["lists"][number]) => {
-    const identity = listIdentity(item);
-    identityById.set(item.id, identity);
-    const prev = byIdentity.get(identity);
-    if (!prev || toEpoch(item.updatedAt) >= toEpoch(prev.updatedAt)) {
-      byIdentity.set(identity, item);
-    }
-  };
-
-  for (const item of remote) ingest(item);
-  for (const item of local) ingest(item);
-
-  const canonicalIdByIdentity = new Map<string, string>();
-  for (const [identity, item] of byIdentity) {
-    canonicalIdByIdentity.set(identity, item.id);
-  }
-
-  const aliases = new Map<string, string>();
-  for (const [id, identity] of identityById) {
-    const canonical = canonicalIdByIdentity.get(identity);
-    if (canonical && canonical !== id) {
-      aliases.set(id, canonical);
-    }
-  }
-
-  return { lists: [...byIdentity.values()], aliases };
-}
-
-function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBackupV1): PlannerBackupV1 {
-  const { lists, aliases } = mergeListsAndBuildAliases(local.data.lists, remote.data.lists);
-  const normalizeTask = (item: PlannerBackupV1["data"]["tasks"][number]) => {
-    if (item.containerType !== "LIST") return item;
-    const canonicalId = aliases.get(item.containerId);
-    if (!canonicalId || canonicalId === item.containerId) return item;
-    return { ...item, containerId: canonicalId };
-  };
-  const normalizeSeries = (item: PlannerBackupV1["data"]["recurrenceSeries"][number]) => {
-    if (item.containerType !== "LIST") return item;
-    const canonicalId = aliases.get(item.containerId);
-    if (!canonicalId || canonicalId === item.containerId) return item;
-    return { ...item, containerId: canonicalId };
-  };
-
-  const localTasks = local.data.tasks.map(normalizeTask);
-  const remoteTasks = remote.data.tasks.map(normalizeTask);
-  const localSeries = local.data.recurrenceSeries.map(normalizeSeries);
-  const remoteSeries = remote.data.recurrenceSeries.map(normalizeSeries);
-
-  return {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    data: {
-      tasks: mergeById(localTasks, remoteTasks, (item) => item.updatedAt),
-      lists,
-      preferences: mergeById(local.data.preferences, remote.data.preferences, (item) => item.updatedAt),
-      recurrenceSeries: mergeById(localSeries, remoteSeries, (item) => item.updatedAt),
-      focusSessions: mergeById(local.data.focusSessions, remote.data.focusSessions, (item) => item.updatedAt),
-    },
-  };
-}
-
-function createEmptyBackup(): PlannerBackupV1 {
-  return {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    data: {
-      tasks: [],
-      lists: [],
-      preferences: [],
-      recurrenceSeries: [],
-      focusSessions: [],
-    },
-  };
 }
 
 function getGoogleTokenClient(clientId: string, callback: (token: GoogleTokenResponse) => void): GoogleTokenClient | null {
@@ -327,6 +223,8 @@ export function GoogleDriveSyncButton({
   const tokenRef = useRef<string | null>(null);
   const tokenClientRef = useRef<GoogleTokenClient | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const lastMergedTsRef = useRef(0);
+  const lastRemoteModifiedRef = useRef<string>("");
 
   const disabled = useMemo(() => !clientId, [clientId]);
   const initials = (email?.trim().charAt(0) || "U").toUpperCase();
@@ -361,6 +259,8 @@ export function GoogleDriveSyncButton({
       }
     }
     tokenRef.current = token;
+    lastMergedTsRef.current = 0;
+    lastRemoteModifiedRef.current = "";
     setSignedIn(true);
     setStatus("Connected");
   };
@@ -436,16 +336,32 @@ export function GoogleDriveSyncButton({
     try {
       const folderId = await ensureFolder(accessToken);
       const local = await exportPlannerBackup();
+      const localTs = getBackupTimestamp(local);
       const remoteMeta = await findBackupFile(accessToken, folderId);
       if (!remoteMeta?.id) {
         await uploadBackup(accessToken, local, folderId);
+        lastMergedTsRef.current = localTs;
+        lastRemoteModifiedRef.current = remoteMeta?.modifiedTime ?? "";
         setStatus(`Synced ${new Date().toLocaleTimeString()}`);
         return;
       }
+
+      const remoteModified = remoteMeta.modifiedTime ?? "";
+      if (localTs <= lastMergedTsRef.current && remoteModified && remoteModified === lastRemoteModifiedRef.current) {
+        setStatus("Up to date");
+        return;
+      }
+
       const remote = await downloadBackup(accessToken, remoteMeta.id);
+      const remoteTs = getBackupTimestamp(remote) || Date.parse(remoteModified);
       const merged = mergePlannerBackups(local, remote);
+      const mergedTs = getBackupTimestamp(merged);
       await importPlannerBackup(merged);
-      await uploadBackup(accessToken, merged, folderId, remoteMeta.id);
+      if (localTs > remoteTs || mergedTs > remoteTs) {
+        await uploadBackup(accessToken, merged, folderId, remoteMeta.id);
+      }
+      lastMergedTsRef.current = mergedTs;
+      lastRemoteModifiedRef.current = remoteModified;
       setStatus(`Synced ${new Date().toLocaleTimeString()}`);
     } catch (error) {
       setStatus(`Sync failed: ${summarizeError(error)}`);
@@ -464,6 +380,7 @@ export function GoogleDriveSyncButton({
       const remoteMeta = await findBackupFile(accessToken, folderId);
       if (!remoteMeta) {
         await uploadBackup(accessToken, local, folderId);
+        lastMergedTsRef.current = getBackupTimestamp(local);
         setStatus("Connected and synced");
         return;
       }
@@ -471,8 +388,13 @@ export function GoogleDriveSyncButton({
       const remoteTs = getBackupTimestamp(remote) || Date.parse(remoteMeta.modifiedTime ?? "");
       const localTs = getBackupTimestamp(local);
       const merged = mergePlannerBackups(local, remote);
+      const mergedTs = getBackupTimestamp(merged);
       await importPlannerBackup(merged);
-      await uploadBackup(accessToken, merged, folderId, remoteMeta.id);
+      if (localTs > remoteTs || mergedTs > remoteTs) {
+        await uploadBackup(accessToken, merged, folderId, remoteMeta.id);
+      }
+      lastMergedTsRef.current = mergedTs;
+      lastRemoteModifiedRef.current = remoteMeta.modifiedTime ?? "";
       setStatus(remoteTs > localTs ? "Connected and restored" : "Connected and synced");
     } catch (error) {
       setStatus(`Connected, merge failed: ${summarizeError(error)}`);
@@ -490,7 +412,7 @@ export function GoogleDriveSyncButton({
     if (!signedIn || !tokenRef.current) return;
     const id = window.setInterval(() => {
       void syncNow();
-    }, 60000);
+    }, 20000);
     return () => window.clearInterval(id);
   }, [signedIn]);
 
@@ -502,6 +424,8 @@ export function GoogleDriveSyncButton({
 
   const onDisconnect = () => {
     tokenRef.current = null;
+    lastMergedTsRef.current = 0;
+    lastRemoteModifiedRef.current = "";
     setSignedIn(false);
     setConnecting(false);
     setStatus("Not connected");

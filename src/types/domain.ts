@@ -96,3 +96,12 @@ export interface FocusSession {
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
+
+export interface SyncTombstone {
+  id: ID;
+  entityType: "task";
+  entityId: ID;
+  deletedAt: ISODateTime;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}

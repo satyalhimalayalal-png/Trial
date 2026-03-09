@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { getDb } from "@/lib/db/dexie";
 import { needsRebalance, nextOrder, rebalanceOrders, sortByOrder } from "@/lib/domain/ordering";
+import { clearTaskTombstone, markTaskDeleted } from "@/lib/db/repos/syncTombstonesRepo";
 import type { ContainerRef, Task } from "@/types/domain";
 
 async function listByContainerInternal(container: ContainerRef): Promise<Task[]> {
@@ -44,7 +45,10 @@ export async function createTask(container: ContainerRef, title: string): Promis
 
 export async function restoreTask(task: Task): Promise<void> {
   const db = getDb();
-  await db.tasks.put(task);
+  await db.transaction("rw", db.tasks, db.syncTombstones, async () => {
+    await db.tasks.put(task);
+    await clearTaskTombstone(task.id);
+  });
 }
 
 export async function updateTitle(taskId: string, title: string): Promise<void> {
@@ -68,7 +72,11 @@ export async function toggleComplete(taskId: string): Promise<void> {
 
 export async function deleteTask(taskId: string): Promise<void> {
   const db = getDb();
-  await db.tasks.delete(taskId);
+  const now = new Date().toISOString();
+  await db.transaction("rw", db.tasks, db.syncTombstones, async () => {
+    await db.tasks.delete(taskId);
+    await markTaskDeleted(taskId, now);
+  });
 }
 
 export async function getTask(taskId: string): Promise<Task | undefined> {

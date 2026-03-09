@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { getDb } from "@/lib/db/dexie";
 import { ensureDefaultLists } from "@/lib/db/seeds";
+import { markTasksDeleted } from "@/lib/db/repos/syncTombstonesRepo";
 import type { PlannerList } from "@/types/domain";
 
 export async function getActiveLists(): Promise<PlannerList[]> {
@@ -46,9 +47,13 @@ export async function deleteCustomList(listId: string): Promise<boolean> {
   const now = new Date().toISOString();
 
   await db.transaction("rw", db.lists, db.tasks, async () => {
+    const listTasks = await db.tasks
+      .filter((task) => task.containerType === "LIST" && task.containerId === listId)
+      .toArray();
     await db.tasks
       .filter((task) => task.containerType === "LIST" && task.containerId === listId)
       .delete();
+    await markTasksDeleted(listTasks.map((task) => task.id), now);
 
     await db.lists.update(listId, {
       archived: true,

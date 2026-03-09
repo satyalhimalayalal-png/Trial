@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { getDb } from "@/lib/db/dexie";
 import { generateOccurrencesInRange } from "@/lib/domain/recurrence";
 import { sortByOrder } from "@/lib/domain/ordering";
+import { clearTaskTombstone, markTasksDeleted } from "@/lib/db/repos/syncTombstonesRepo";
 import type { RecurrenceRule, RecurrenceSeries, Task } from "@/types/domain";
 
 function normalizeRule(rule: RecurrenceRule): RecurrenceRule {
@@ -33,7 +34,9 @@ export async function createOrUpdateSeriesForTask(
     const seriesId = task.seriesId ?? nanoid();
 
     if (task.seriesId) {
+      const prior = await db.tasks.where("seriesId").equals(seriesId).toArray();
       await db.tasks.where("seriesId").equals(seriesId).delete();
+      await markTasksDeleted(prior.map((item) => item.id), now);
     }
 
     const series: RecurrenceSeries = {
@@ -62,6 +65,7 @@ export async function createOrUpdateSeriesForTask(
     };
 
     await db.tasks.put(anchorTask);
+    await clearTaskTombstone(anchorTask.id);
 
     await syncSeriesOccurrences(
       seriesId,
@@ -136,6 +140,7 @@ export async function deleteAllSeriesInstances(taskId: string): Promise<void> {
 
     if (targetIds.length > 0) {
       await db.tasks.bulkDelete(targetIds);
+      await markTasksDeleted(targetIds);
     }
 
     await db.recurrenceSeries.update(seriesId, {
@@ -157,9 +162,12 @@ export async function disableSeriesForTask(taskId: string): Promise<void> {
   delete standaloneTask.occurrenceDateKey;
 
   await db.transaction("rw", db.tasks, db.recurrenceSeries, async () => {
+    const seriesTasks = await db.tasks.where("seriesId").equals(seriesId).toArray();
     await db.tasks.where("seriesId").equals(seriesId).delete();
+    await markTasksDeleted(seriesTasks.map((item) => item.id), now);
     await db.recurrenceSeries.delete(seriesId);
     await db.tasks.put(standaloneTask);
+    await clearTaskTombstone(standaloneTask.id);
   });
 }
 

@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { FocusSession, PlannerList, RecurrenceSeries, Task, UserPreferences } from "@/types/domain";
+import type { FocusSession, PlannerList, RecurrenceSeries, SyncTombstone, Task, UserPreferences } from "@/types/domain";
 
 const ACTIVE_PROFILE_KEY = "cheqlist-active-profile";
 const ANON_PROFILE_ID = "anon";
@@ -20,6 +20,7 @@ class PlannerDB extends Dexie {
   preferences!: EntityTable<UserPreferences, "id">;
   recurrenceSeries!: EntityTable<RecurrenceSeries, "id">;
   focusSessions!: EntityTable<FocusSession, "id">;
+  syncTombstones!: EntityTable<SyncTombstone, "id">;
 
   constructor(dbName: string) {
     super(dbName);
@@ -55,6 +56,15 @@ class PlannerDB extends Dexie {
             updatedAt: new Date().toISOString(),
           } satisfies UserPreferences);
       });
+
+    this.version(3).stores({
+      tasks: "id, [containerType+containerId+order], [containerType+containerId+completed], updatedAt, seriesId, occurrenceDateKey",
+      lists: "id, kind, order, archived, systemKey",
+      preferences: "id, updatedAt",
+      recurrenceSeries: "id, active, updatedAt",
+      focusSessions: "id, startAt, weekKey, dayKey, taskId",
+      syncTombstones: "id, entityType, entityId, deletedAt, updatedAt",
+    });
   }
 }
 

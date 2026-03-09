@@ -1,7 +1,7 @@
 "use client";
 
 import { getDb } from "@/lib/db/dexie";
-import type { FocusSession, PlannerList, RecurrenceSeries, Task, UserPreferences } from "@/types/domain";
+import type { FocusSession, PlannerList, RecurrenceSeries, SyncTombstone, Task, UserPreferences } from "@/types/domain";
 
 export interface PlannerBackupV1 {
   version: 1;
@@ -12,6 +12,7 @@ export interface PlannerBackupV1 {
     preferences: UserPreferences[];
     recurrenceSeries: RecurrenceSeries[];
     focusSessions: FocusSession[];
+    syncTombstones?: SyncTombstone[];
   };
 }
 
@@ -33,7 +34,11 @@ function latestDataTimestamp(payload: PlannerBackupV1): number {
     (max, item) => Math.max(max, toEpoch(item.updatedAt), toEpoch(item.createdAt), toEpoch(item.startAt), toEpoch(item.endAt)),
     0,
   );
-  const dataTs = Math.max(taskTs, listTs, prefsTs, recurrenceTs, focusTs);
+  const tombstoneTs = (payload.data.syncTombstones ?? []).reduce(
+    (max, item) => Math.max(max, toEpoch(item.deletedAt), toEpoch(item.updatedAt), toEpoch(item.createdAt)),
+    0,
+  );
+  const dataTs = Math.max(taskTs, listTs, prefsTs, recurrenceTs, focusTs, tombstoneTs);
   return dataTs || toEpoch(payload.exportedAt);
 }
 
@@ -109,34 +114,65 @@ export function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBacku
   const remoteTasks = remote.data.tasks.map(normalizeTask);
   const localSeries = local.data.recurrenceSeries.map(normalizeSeries);
   const remoteSeries = remote.data.recurrenceSeries.map(normalizeSeries);
+  const mergedTombstones = mergeById(
+    local.data.syncTombstones ?? [],
+    remote.data.syncTombstones ?? [],
+    (item) => item.updatedAt || item.deletedAt,
+  );
+  const taskTombstones = new Map(
+    mergedTombstones.filter((row) => row.entityType === "task").map((row) => [row.entityId, row]),
+  );
+
+  const mergedTasks = mergeById(localTasks, remoteTasks, (item) => item.updatedAt).filter((task) => {
+    const tombstone = taskTombstones.get(task.id);
+    if (!tombstone) return true;
+    return toEpoch(task.updatedAt) > toEpoch(tombstone.deletedAt);
+  });
 
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
     data: {
-      tasks: mergeById(localTasks, remoteTasks, (item) => item.updatedAt),
+      tasks: mergedTasks,
       lists,
       preferences: mergeById(local.data.preferences, remote.data.preferences, (item) => item.updatedAt),
       recurrenceSeries: mergeById(localSeries, remoteSeries, (item) => item.updatedAt),
       focusSessions: mergeById(local.data.focusSessions, remote.data.focusSessions, (item) => item.updatedAt),
+      syncTombstones: mergedTombstones,
+    },
+  };
+}
+
+export function createEmptyBackup(): PlannerBackupV1 {
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: {
+      tasks: [],
+      lists: [],
+      preferences: [],
+      recurrenceSeries: [],
+      focusSessions: [],
+      syncTombstones: [],
     },
   };
 }
 
 export async function exportPlannerBackup(): Promise<PlannerBackupV1> {
   const db = getDb();
-  const [tasks, lists, preferences, recurrenceSeries, focusSessions] = await Promise.all([
+  const [tasks, lists, preferences, recurrenceSeries, focusSessions, syncTombstones] = await Promise.all([
     db.tasks.toArray(),
     db.lists.toArray(),
     db.preferences.toArray(),
     db.recurrenceSeries.toArray(),
     db.focusSessions.toArray(),
+    db.syncTombstones.toArray(),
   ]);
 
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
-    data: { tasks, lists, preferences, recurrenceSeries, focusSessions },
+    data: { tasks, lists, preferences, recurrenceSeries, focusSessions, syncTombstones },
   };
 }
 
@@ -144,7 +180,7 @@ export async function importPlannerBackup(payload: PlannerBackupV1): Promise<voi
   const db = getDb();
   await db.transaction(
     "rw",
-    [db.tasks, db.lists, db.preferences, db.recurrenceSeries, db.focusSessions],
+    [db.tasks, db.lists, db.preferences, db.recurrenceSeries, db.focusSessions, db.syncTombstones],
     async () => {
       await Promise.all([
         db.tasks.clear(),
@@ -152,6 +188,7 @@ export async function importPlannerBackup(payload: PlannerBackupV1): Promise<voi
         db.preferences.clear(),
         db.recurrenceSeries.clear(),
         db.focusSessions.clear(),
+        db.syncTombstones.clear(),
       ]);
 
       if (payload.data.tasks.length) await db.tasks.bulkPut(payload.data.tasks);
@@ -159,6 +196,7 @@ export async function importPlannerBackup(payload: PlannerBackupV1): Promise<voi
       if (payload.data.preferences.length) await db.preferences.bulkPut(payload.data.preferences);
       if (payload.data.recurrenceSeries.length) await db.recurrenceSeries.bulkPut(payload.data.recurrenceSeries);
       if (payload.data.focusSessions.length) await db.focusSessions.bulkPut(payload.data.focusSessions);
+      if ((payload.data.syncTombstones ?? []).length) await db.syncTombstones.bulkPut(payload.data.syncTombstones ?? []);
     },
   );
 }
