@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { exportPlannerBackup, getBackupTimestamp, importPlannerBackup, type PlannerBackupV1 } from "@/lib/googleDriveStore";
+import {
+  exportPlannerBackup,
+  getBackupTimestamp,
+  importPlannerBackup,
+  mergePlannerBackups,
+  type PlannerBackupV1,
+} from "@/lib/googleDriveStore";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file openid email profile";
 const DRIVE_FOLDER_NAME = "CHEQLIST";
@@ -9,6 +15,7 @@ const DRIVE_FILE_NAME = "cheqlist-backup-v1.json";
 const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
 const TOKEN_EXP_STORAGE_KEY = "cheqlist-google-access-exp";
 const EMAIL_STORAGE_KEY = "cheqlist-google-email";
+const KEEP_SIGNED_IN_KEY = "cheqlist-google-keep-signed-in";
 
 type GoogleTokenClient = {
   requestAccessToken: (args?: { prompt?: string }) => void;
@@ -187,13 +194,16 @@ export function GoogleDriveSyncButton({
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [status, setStatus] = useState<string>("Not connected");
   const [email, setEmail] = useState<string | null>(null);
   const tokenRef = useRef<string | null>(null);
   const tokenClientRef = useRef<GoogleTokenClient | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const silentAttemptRef = useRef(false);
+  const autoReconnectAttemptedRef = useRef(false);
 
   const disabled = useMemo(() => !clientId, [clientId]);
   const initials = (email?.trim().charAt(0) || "U").toUpperCase();
@@ -207,11 +217,18 @@ export function GoogleDriveSyncButton({
   };
 
   const applyToken = async (response: GoogleTokenResponse) => {
+    setConnecting(false);
     const token = response.access_token;
     if (!token) {
+      if (silentAttemptRef.current) {
+        silentAttemptRef.current = false;
+        setStatus("Not connected");
+        return;
+      }
       if (response.error) setStatus(`Sign-in failed: ${response.error}`);
       return;
     }
+    silentAttemptRef.current = false;
     saveToken(token, response.expires_in);
     const nextEmail = await getEmail(token);
     if (nextEmail) {
@@ -220,6 +237,19 @@ export function GoogleDriveSyncButton({
     }
     setStatus("Connected");
   };
+
+  useEffect(() => {
+    const saved = localStorage.getItem(KEEP_SIGNED_IN_KEY);
+    if (saved === null) return;
+    setKeepSignedIn(saved === "1");
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(KEEP_SIGNED_IN_KEY, keepSignedIn ? "1" : "0");
+    if (keepSignedIn) {
+      autoReconnectAttemptedRef.current = false;
+    }
+  }, [keepSignedIn]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -252,6 +282,15 @@ export function GoogleDriveSyncButton({
   }, [clientId]);
 
   useEffect(() => {
+    if (!ready || signedIn || !keepSignedIn || autoReconnectAttemptedRef.current) return;
+    if (!tokenClientRef.current) return;
+    autoReconnectAttemptedRef.current = true;
+    silentAttemptRef.current = true;
+    setConnecting(true);
+    tokenClientRef.current.requestAccessToken({ prompt: "" });
+  }, [ready, signedIn, keepSignedIn]);
+
+  useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
       if (!wrapperRef.current) return;
       if (wrapperRef.current.contains(event.target as Node)) return;
@@ -269,7 +308,15 @@ export function GoogleDriveSyncButton({
       const folderId = await ensureFolder(accessToken);
       const local = await exportPlannerBackup();
       const remoteMeta = await findBackupFile(accessToken, folderId);
-      await uploadBackup(accessToken, local, folderId, remoteMeta?.id);
+      if (!remoteMeta?.id) {
+        await uploadBackup(accessToken, local, folderId);
+        setStatus(`Synced ${new Date().toLocaleTimeString()}`);
+        return;
+      }
+      const remote = await downloadBackup(accessToken, remoteMeta.id);
+      const merged = mergePlannerBackups(local, remote);
+      await importPlannerBackup(merged);
+      await uploadBackup(accessToken, merged, folderId, remoteMeta.id);
       setStatus(`Synced ${new Date().toLocaleTimeString()}`);
     } catch (error) {
       setStatus(`Sync failed: ${summarizeError(error)}`);
@@ -294,13 +341,10 @@ export function GoogleDriveSyncButton({
       const remote = await downloadBackup(accessToken, remoteMeta.id);
       const remoteTs = getBackupTimestamp(remote) || Date.parse(remoteMeta.modifiedTime ?? "");
       const localTs = getBackupTimestamp(local);
-      if (remoteTs > localTs) {
-        await importPlannerBackup(remote);
-        setStatus("Connected and restored");
-      } else {
-        await uploadBackup(accessToken, local, folderId, remoteMeta.id);
-        setStatus("Connected and synced");
-      }
+      const merged = mergePlannerBackups(local, remote);
+      await importPlannerBackup(merged);
+      await uploadBackup(accessToken, merged, folderId, remoteMeta.id);
+      setStatus(remoteTs > localTs ? "Connected and restored" : "Connected and synced");
     } catch (error) {
       setStatus(`Connected, merge failed: ${summarizeError(error)}`);
     } finally {
@@ -322,59 +366,16 @@ export function GoogleDriveSyncButton({
   }, [signedIn]);
 
   const onConnect = () => {
-    if (!tokenClientRef.current) return;
-    tokenClientRef.current.requestAccessToken({ prompt: "consent select_account" });
+    if (!tokenClientRef.current || connecting) return;
+    silentAttemptRef.current = false;
+    setConnecting(true);
+    tokenClientRef.current.requestAccessToken({ prompt: keepSignedIn ? "select_account" : "consent select_account" });
   };
-
-  useEffect(() => {
-    if (variant !== "panel") return;
-    if (!ready || signedIn || !clientId || !googleButtonRef.current) return;
-    const googleRef = (window as Window & { google?: unknown }).google as
-      | {
-          accounts?: {
-            id?: {
-              initialize?: (config: {
-                client_id: string;
-                callback: (response: { credential?: string }) => void;
-              }) => void;
-              renderButton?: (
-                parent: HTMLElement,
-                options: {
-                  type?: "standard" | "icon";
-                  theme?: "outline" | "filled_blue" | "filled_black";
-                  size?: "large" | "medium" | "small";
-                  shape?: "rectangular" | "pill" | "circle" | "square";
-                  text?: "signin_with" | "signup_with" | "continue_with" | "signin";
-                  width?: number;
-                },
-              ) => void;
-            };
-          };
-        }
-      | undefined;
-
-    if (!googleRef?.accounts?.id?.initialize || !googleRef.accounts.id.renderButton) return;
-    googleRef.accounts.id.initialize({
-      client_id: clientId,
-      callback: () => {
-        onConnect();
-      },
-    });
-
-    googleButtonRef.current.innerHTML = "";
-    googleRef.accounts.id.renderButton(googleButtonRef.current, {
-      type: "standard",
-      theme: "outline",
-      size: "large",
-      shape: "rectangular",
-      text: "signin_with",
-      width: 240,
-    });
-  }, [clientId, ready, signedIn, variant]);
 
   const onDisconnect = () => {
     tokenRef.current = null;
     setSignedIn(false);
+    setConnecting(false);
     setStatus("Not connected");
     setEmail(null);
     localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -409,8 +410,13 @@ export function GoogleDriveSyncButton({
         ) : (
           <div className="space-y-2">
             <p className="text-muted">Not logged in</p>
-            <div ref={googleButtonRef} />
-            {!ready ? <p className="text-[11px] text-muted">Loading sign-in button...</p> : null}
+            <button type="button" className="rounded border border-theme px-2 py-1" onClick={onConnect} disabled={!ready || connecting}>
+              {!ready ? "Loading..." : connecting ? "Opening..." : "Sign in with Google"}
+            </button>
+            <label className="flex items-center gap-2 text-[11px] text-muted">
+              <input type="checkbox" checked={keepSignedIn} onChange={(event) => setKeepSignedIn(event.target.checked)} />
+              Keep me signed in
+            </label>
             <p className="text-[11px] text-muted">{status}</p>
           </div>
         )}
@@ -458,9 +464,13 @@ export function GoogleDriveSyncButton({
           ) : (
             <div className="space-y-2">
               <p className="text-muted">Not logged in</p>
-              <button type="button" className="rounded border border-theme px-2 py-1" onClick={onConnect} disabled={!ready}>
-                {ready ? "Sign in with Google" : "Loading..."}
+              <button type="button" className="rounded border border-theme px-2 py-1" onClick={onConnect} disabled={!ready || connecting}>
+                {!ready ? "Loading..." : connecting ? "Opening..." : "Sign in with Google"}
               </button>
+              <label className="flex items-center gap-2 text-[11px] text-muted">
+                <input type="checkbox" checked={keepSignedIn} onChange={(event) => setKeepSignedIn(event.target.checked)} />
+                Keep me signed in
+              </label>
               <p className="text-[11px] text-muted">{status}</p>
             </div>
           )}
