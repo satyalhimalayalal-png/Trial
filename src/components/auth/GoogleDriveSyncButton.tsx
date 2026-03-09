@@ -5,7 +5,6 @@ import {
   exportPlannerBackup,
   getBackupTimestamp,
   importPlannerBackup,
-  mergePlannerBackups,
   type PlannerBackupV1,
 } from "@/lib/googleDriveStore";
 
@@ -63,6 +62,38 @@ async function readApiError(res: Response): Promise<string> {
 function summarizeError(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
   return "Unknown error";
+}
+
+function toEpoch(value: string | undefined): number {
+  if (!value) return 0;
+  const ts = Date.parse(value);
+  return Number.isNaN(ts) ? 0 : ts;
+}
+
+function mergeById<T extends { id: string }>(local: T[], remote: T[], getUpdatedAt: (item: T) => string): T[] {
+  const merged = new Map<string, T>();
+  for (const item of remote) merged.set(item.id, item);
+  for (const item of local) {
+    const prev = merged.get(item.id);
+    if (!prev || toEpoch(getUpdatedAt(item)) >= toEpoch(getUpdatedAt(prev))) {
+      merged.set(item.id, item);
+    }
+  }
+  return [...merged.values()];
+}
+
+function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBackupV1): PlannerBackupV1 {
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: {
+      tasks: mergeById(local.data.tasks, remote.data.tasks, (item) => item.updatedAt),
+      lists: mergeById(local.data.lists, remote.data.lists, (item) => item.updatedAt),
+      preferences: mergeById(local.data.preferences, remote.data.preferences, (item) => item.updatedAt),
+      recurrenceSeries: mergeById(local.data.recurrenceSeries, remote.data.recurrenceSeries, (item) => item.updatedAt),
+      focusSessions: mergeById(local.data.focusSessions, remote.data.focusSessions, (item) => item.updatedAt),
+    },
+  };
 }
 
 function getGoogleTokenClient(clientId: string, callback: (token: GoogleTokenResponse) => void): GoogleTokenClient | null {
