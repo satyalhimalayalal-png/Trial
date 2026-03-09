@@ -423,10 +423,10 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
               <section className="mt-4 rounded border border-theme surface p-3">
                 <h2 className="text-sm font-semibold">Focus heat map</h2>
                 <div className="mt-3 overflow-x-auto">
-                  <div className="inline-block" style={{ minWidth: `max(100%, ${heatmap.weeks.length * 13 + 120}px)` }}>
+                  <div className="inline-block" style={{ minWidth: `max(100%, ${heatmap.weeks.length * 14 + 120}px)` }}>
                     <div className="mb-1 flex items-end gap-2">
                       <div className="w-8 shrink-0" />
-                      <div className="grid gap-1 text-[10px] font-medium text-muted" style={{ gridTemplateColumns: `repeat(${heatmap.weeks.length}, 0.72rem)` }}>
+                      <div className="grid gap-1 text-[10px] font-medium text-muted" style={{ gridTemplateColumns: `repeat(${heatmap.weeks.length}, 0.78rem)` }}>
                         {heatmap.monthTicks.map((month) => (
                           <span key={`${month.label}-${month.weekIndex}`} style={{ gridColumnStart: month.weekIndex + 1 }}>
                             {month.label}
@@ -437,7 +437,7 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((weekday, dayIndex) => (
                       <div key={weekday} className="mb-1 flex items-center gap-2">
                         <span className="w-8 shrink-0 text-xs text-muted">{weekday}</span>
-                        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${heatmap.weeks.length}, 0.72rem)` }}>
+                        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${heatmap.weeks.length}, 0.78rem)` }}>
                           {heatmap.weeks.map((week, weekIndex) => {
                             const cell = week[dayIndex];
                             const ratio = maxYearHeat > 0 ? cell.value / maxYearHeat : 0;
@@ -447,7 +447,7 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                               <button
                                 key={`${weekIndex}-${dayIndex}`}
                                 type="button"
-                                className={`h-3 w-3 rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-[var(--custom-color)]" : ""}`}
+                                className={`h-[0.8rem] w-[0.8rem] rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-[var(--custom-color)]" : ""}`}
                                 style={{
                                   backgroundColor: cell.inRange
                                     ? cell.value > 0

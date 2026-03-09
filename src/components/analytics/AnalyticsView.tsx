@@ -177,7 +177,7 @@ export function AnalyticsView() {
     if (initialHeatmapPositionedRef.current) return;
     const tick = history.yearHeatmap.yearTicks.find((item) => item.label === currentYearLabel);
     if (!tick) return;
-    const cellWidth = 0.72 * 16 + 4;
+    const cellWidth = 0.78 * 16 + 4;
     const left = tick.weekIndex * cellWidth - 64;
     heatmapScrollRef.current.scrollLeft = Math.max(0, left);
     initialHeatmapPositionedRef.current = true;
@@ -393,12 +393,12 @@ export function AnalyticsView() {
         <section className="mt-4 rounded border border-theme surface p-3">
           <h2 className="text-sm font-semibold">Focus heat map</h2>
           <div ref={heatmapScrollRef} className="mt-3 overflow-x-auto">
-            <div className="inline-block" style={{ minWidth: `max(100%, ${history.yearHeatmap.weeks.length * 13 + 120}px)` }}>
+            <div className="inline-block" style={{ minWidth: `max(100%, ${history.yearHeatmap.weeks.length * 14 + 120}px)` }}>
               <div className="mb-1 flex items-end gap-2">
                 <div className="w-8 shrink-0" />
                 <div
                   className="relative grid gap-1 text-[10px] font-semibold text-muted"
-                  style={{ gridTemplateColumns: `repeat(${history.yearHeatmap.weeks.length}, 0.72rem)` }}
+                  style={{ gridTemplateColumns: `repeat(${history.yearHeatmap.weeks.length}, 0.78rem)` }}
                 >
                   {history.yearHeatmap.yearTicks.map((year) => (
                     <span key={`year-${year.label}-${year.weekIndex}`} style={{ gridColumnStart: year.weekIndex + 1 }}>
@@ -411,7 +411,7 @@ export function AnalyticsView() {
                 <div className="w-8 shrink-0" />
                 <div
                   className="grid gap-1 text-[10px] font-medium text-muted"
-                  style={{ gridTemplateColumns: `repeat(${history.yearHeatmap.weeks.length}, 0.72rem)` }}
+                  style={{ gridTemplateColumns: `repeat(${history.yearHeatmap.weeks.length}, 0.78rem)` }}
                 >
                   {history.yearHeatmap.monthTicks.map((month) => (
                     <span key={`${month.label}-${month.weekIndex}`} style={{ gridColumnStart: month.weekIndex + 1 }}>
@@ -427,7 +427,7 @@ export function AnalyticsView() {
                     <span className="w-8 shrink-0 text-xs text-muted">{weekday}</span>
                     <div
                       className="grid gap-1"
-                      style={{ gridTemplateColumns: `repeat(${history.yearHeatmap.weeks.length}, 0.72rem)` }}
+                      style={{ gridTemplateColumns: `repeat(${history.yearHeatmap.weeks.length}, 0.78rem)` }}
                     >
                       {history.yearHeatmap.weeks.map((week, weekIndex) => {
                         const cell = week[dayIndex];
@@ -446,7 +446,7 @@ export function AnalyticsView() {
                           <button
                             key={`${weekIndex}-${dayIndex}`}
                             type="button"
-                            className={`h-3 w-3 rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-offset-1 ring-offset-transparent ring-[var(--custom-color)]" : ""}`}
+                            className={`h-[0.8rem] w-[0.8rem] rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-offset-1 ring-offset-transparent ring-[var(--custom-color)]" : ""}`}
                             style={{
                               borderColor: isSelected ? "var(--custom-color)" : undefined,
                               backgroundColor: cell.inRange

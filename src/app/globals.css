@@ -104,7 +104,7 @@
   --todo-border-color: #1b1c20;
   --task-grid-line-color: #2a2f36;
   --checklist-background: #171a20;
-  --checklist-inner-background: #181f2b;
+  --checklist-inner-background: #1b2432;
   --todo-checkbox: color-mix(in oklab, var(--custom-color) 50%, transparent);
   --todo-checkbox-done-color: #484848;
   --todo-button-bg: #484848;
