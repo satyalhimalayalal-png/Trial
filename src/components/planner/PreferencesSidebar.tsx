@@ -1,5 +1,6 @@
 "use client";
 
+import { GoogleDriveSyncButton } from "@/components/auth/GoogleDriveSyncButton";
 import type {
   AccentColor,
   BulletStyle,
@@ -127,6 +128,13 @@ export function PreferencesSidebar({ preferences, onPatch }: PreferencesSidebarP
       <div className="mt-3">
         <p className="text-xs uppercase text-muted">Theme</p>
         <ButtonGroup value={preferences.theme} options={THEME_OPTIONS} onChange={(theme) => void onPatch({ theme })} />
+      </div>
+
+      <div className="mt-3">
+        <p className="text-xs uppercase text-muted">Account</p>
+        <div className="mt-1">
+          <GoogleDriveSyncButton variant="panel" />
+        </div>
       </div>
 
       <ToggleRow label="Show completed" checked={preferences.showCompleted} onChange={(showCompleted) => void onPatch({ showCompleted })} />

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { GoogleDriveSyncButton } from "@/components/auth/GoogleDriveSyncButton";
 
 type TopMode = "planner" | "focus" | "today" | "analytics";
 
@@ -51,14 +50,14 @@ function IconSettings() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M11.983 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
+        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M19.4 15a1.03 1.03 0 0 0 .21 1.14l.04.04a1.25 1.25 0 1 1-1.77 1.77l-.04-.04a1.03 1.03 0 0 0-1.14-.21 1.03 1.03 0 0 0-.63.94V19a1.25 1.25 0 0 1-2.5 0v-.06a1.03 1.03 0 0 0-.63-.94 1.03 1.03 0 0 0-1.14.21l-.04.04a1.25 1.25 0 0 1-1.77-1.77l.04-.04a1.03 1.03 0 0 0 .21-1.14 1.03 1.03 0 0 0-.94-.63H9a1.25 1.25 0 0 1 0-2.5h.06a1.03 1.03 0 0 0 .94-.63 1.03 1.03 0 0 0-.21-1.14l-.04-.04a1.25 1.25 0 1 1 1.77-1.77l.04.04a1.03 1.03 0 0 0 1.14.21h.01a1.03 1.03 0 0 0 .62-.95V5a1.25 1.25 0 0 1 2.5 0v.06a1.03 1.03 0 0 0 .63.94h.01a1.03 1.03 0 0 0 1.14-.21l.04-.04a1.25 1.25 0 1 1 1.77 1.77l-.04.04a1.03 1.03 0 0 0-.21 1.14v.01a1.03 1.03 0 0 0 .95.62H21a1.25 1.25 0 1 1 0 2.5h-.06a1.03 1.03 0 0 0-.94.63V13a1.03 1.03 0 0 0 .4 2Z"
+        d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.4 1.4 0 0 1-2 2l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9v.2a1.4 1.4 0 0 1-2.8 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.4 1.4 0 0 1-2-2l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6h-.2a1.4 1.4 0 0 1 0-2.8h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.4 1.4 0 1 1 2-2l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9v-.2a1.4 1.4 0 0 1 2.8 0v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.4 1.4 0 1 1 2 2l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a1.4 1.4 0 0 1 0 2.8h-.2a1 1 0 0 0-.9.6Z"
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
@@ -130,7 +129,6 @@ export function TopAccentBar({ mode, rangeLabel, searchQuery, onSearchChange, on
           <IconButton href="/" title="Planner" active={mode === "planner"} icon={<IconPlanner />} />
           <IconButton href="/focus" title="Focus" active={mode === "focus" || mode === "today"} icon={<IconClock />} />
           <IconButton href="/analytics" title="Analytics" active={mode === "analytics"} icon={<IconChart />} />
-          <GoogleDriveSyncButton align="right" />
           <IconButton title="Settings" onClick={onTogglePrefs} icon={<IconSettings />} />
         </div>
       </div>

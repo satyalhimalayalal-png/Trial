@@ -143,7 +143,13 @@ async function getEmail(accessToken: string): Promise<string | null> {
   return data.email ?? null;
 }
 
-export function GoogleDriveSyncButton({ align = "left" }: { align?: "left" | "right" }) {
+export function GoogleDriveSyncButton({
+  align = "left",
+  variant = "menu",
+}: {
+  align?: "left" | "right";
+  variant?: "menu" | "panel";
+}) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -295,6 +301,43 @@ export function GoogleDriveSyncButton({ align = "left" }: { align?: "left" | "ri
     localStorage.removeItem(TOKEN_EXP_STORAGE_KEY);
     localStorage.removeItem(EMAIL_STORAGE_KEY);
   };
+
+  if (variant === "panel") {
+    return (
+      <div className="rounded border border-theme p-2 text-xs">
+        {disabled ? (
+          <p className="text-muted">Google login unavailable. Set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`.</p>
+        ) : signedIn ? (
+          <div className="space-y-2">
+            <p className="text-muted">Logged in as</p>
+            <p className="truncate font-semibold">{email ?? "Google user"}</p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="rounded border border-theme px-2 py-1"
+                onClick={() => void syncNow()}
+                disabled={syncing}
+              >
+                {syncing ? "Syncing..." : "Sync now"}
+              </button>
+              <button type="button" className="rounded border border-theme px-2 py-1" onClick={onDisconnect}>
+                Logout
+              </button>
+            </div>
+            <p className="text-[11px] text-muted">{status}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-muted">Not logged in</p>
+            <button type="button" className="rounded border border-theme px-2 py-1" onClick={onConnect} disabled={!ready}>
+              {ready ? "Sign in with Google" : "Loading..."}
+            </button>
+            <p className="text-[11px] text-muted">{status}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div ref={wrapperRef} className="relative">
