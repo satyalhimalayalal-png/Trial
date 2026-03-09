@@ -49,20 +49,15 @@ function IconChart() {
 function IconSettings() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.4 1.4 0 0 1-2 2l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9v.2a1.4 1.4 0 0 1-2.8 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.4 1.4 0 0 1-2-2l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6h-.2a1.4 1.4 0 0 1 0-2.8h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.4 1.4 0 1 1 2-2l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9v-.2a1.4 1.4 0 0 1 2.8 0v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.4 1.4 0 1 1 2 2l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a1.4 1.4 0 0 1 0 2.8h-.2a1 1 0 0 0-.9.6Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 1v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 17v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="m4.22 4.22 4.24 4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="m15.54 15.54 4.24 4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M1 12h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M17 12h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="m4.22 19.78 4.24-4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="m15.54 8.46 4.24-4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

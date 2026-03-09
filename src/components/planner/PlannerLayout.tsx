@@ -154,7 +154,7 @@ function PlannerChrome({
 
       <div
         ref={prefsRef}
-        className="fixed inset-x-2 z-50 w-auto sm:inset-x-auto sm:right-3 sm:w-[290px]"
+        className="fixed inset-x-2 z-50 max-h-[calc(100dvh-var(--ui-toolbar-height)-0.75rem)] w-auto overflow-hidden sm:inset-x-auto sm:right-3 sm:w-[290px]"
         style={{ top: "calc(var(--ui-toolbar-height) + var(--ui-top-border-width) + 0.3333333333rem)" }}
       >
         {prefsOpen ? <PreferencesSidebar preferences={preferences} onPatch={onPatchPreferences} /> : null}

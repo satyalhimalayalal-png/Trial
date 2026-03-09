@@ -90,7 +90,7 @@ function ToggleRow({
 
 export function PreferencesSidebar({ preferences, onPatch }: PreferencesSidebarProps) {
   return (
-    <aside className="h-full overflow-y-auto rounded-md border border-theme surface p-3 shadow-lg">
+    <aside className="h-full max-h-[calc(100dvh-var(--ui-toolbar-height)-0.75rem)] overflow-y-auto rounded-md border border-theme surface p-3 shadow-lg">
       <h2 className="font-semibold uppercase tracking-[0.08em]" style={{ fontFamily: "var(--ff-sans-condensed)" }}>
         Preferences
       </h2>

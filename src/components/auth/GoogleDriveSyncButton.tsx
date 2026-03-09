@@ -160,6 +160,7 @@ export function GoogleDriveSyncButton({
   const tokenRef = useRef<string | null>(null);
   const tokenClientRef = useRef<GoogleTokenClient | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
   const disabled = useMemo(() => !clientId, [clientId]);
   const initials = (email?.trim().charAt(0) || "U").toUpperCase();
@@ -292,6 +293,52 @@ export function GoogleDriveSyncButton({
     tokenClientRef.current.requestAccessToken({ prompt: "consent select_account" });
   };
 
+  useEffect(() => {
+    if (variant !== "panel") return;
+    if (!ready || signedIn || !clientId || !googleButtonRef.current) return;
+    const googleRef = (window as Window & { google?: unknown }).google as
+      | {
+          accounts?: {
+            id?: {
+              initialize?: (config: {
+                client_id: string;
+                callback: (response: { credential?: string }) => void;
+              }) => void;
+              renderButton?: (
+                parent: HTMLElement,
+                options: {
+                  type?: "standard" | "icon";
+                  theme?: "outline" | "filled_blue" | "filled_black";
+                  size?: "large" | "medium" | "small";
+                  shape?: "rectangular" | "pill" | "circle" | "square";
+                  text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+                  width?: number;
+                },
+              ) => void;
+            };
+          };
+        }
+      | undefined;
+
+    if (!googleRef?.accounts?.id?.initialize || !googleRef.accounts.id.renderButton) return;
+    googleRef.accounts.id.initialize({
+      client_id: clientId,
+      callback: () => {
+        onConnect();
+      },
+    });
+
+    googleButtonRef.current.innerHTML = "";
+    googleRef.accounts.id.renderButton(googleButtonRef.current, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      shape: "rectangular",
+      text: "signin_with",
+      width: 240,
+    });
+  }, [clientId, ready, signedIn, variant]);
+
   const onDisconnect = () => {
     tokenRef.current = null;
     setSignedIn(false);
@@ -329,9 +376,8 @@ export function GoogleDriveSyncButton({
         ) : (
           <div className="space-y-2">
             <p className="text-muted">Not logged in</p>
-            <button type="button" className="rounded border border-theme px-2 py-1" onClick={onConnect} disabled={!ready}>
-              {ready ? "Sign in with Google" : "Loading..."}
-            </button>
+            <div ref={googleButtonRef} />
+            {!ready ? <p className="text-[11px] text-muted">Loading sign-in button...</p> : null}
             <p className="text-[11px] text-muted">{status}</p>
           </div>
         )}
