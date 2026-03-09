@@ -94,6 +94,17 @@ export function FocusTimer() {
     );
   }, [config.focusMinutes, config.breakMinutes, autoStartBreaks, autoStartPomodoros, alertTone]);
 
+  useEffect(() => {
+    if (!expanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setExpanded(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expanded]);
+
   const phaseDurationSec = useMemo(() => {
     return (phase === "focus" ? config.focusMinutes : config.breakMinutes) * 60;
   }, [phase, config.focusMinutes, config.breakMinutes]);
@@ -392,11 +403,11 @@ export function FocusTimer() {
       </div>
 
       {mode === "stopwatch" ? (
-        <div className={expanded ? "flex flex-1 flex-col items-center justify-center gap-5" : "flex items-center justify-between"}>
+        <div className={expanded ? "flex flex-1 flex-col items-center justify-center gap-8" : "flex items-center justify-between"}>
           <div className="flex flex-col items-center">
             <button
               type="button"
-              className={expanded ? "focus-timer-display cursor-pointer text-[clamp(4.5rem,15vw,11rem)] leading-none" : "focus-timer-display cursor-pointer text-2xl leading-none"}
+              className={expanded ? "focus-timer-display cursor-pointer text-[clamp(6rem,22vw,16rem)] leading-none" : "focus-timer-display cursor-pointer text-2xl leading-none"}
               onClick={() => setExpanded((prev) => !prev)}
               title={expanded ? "Minimize timer" : "Fullscreen timer"}
             >
@@ -404,11 +415,11 @@ export function FocusTimer() {
             </button>
           </div>
           {timer.active ? (
-            <button className={expanded ? "rounded border border-theme px-8 py-3 text-2xl" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.stop()}>
+            <button className={expanded ? "rounded border border-theme px-12 py-4 text-3xl" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.stop()}>
               Stop
             </button>
           ) : (
-            <button className={expanded ? "rounded border border-theme px-8 py-3 text-2xl" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.start()}>
+            <button className={expanded ? "rounded border border-theme px-12 py-4 text-3xl" : "rounded border border-theme px-3 py-1"} onClick={() => void timer.start()}>
               Start
             </button>
           )}
