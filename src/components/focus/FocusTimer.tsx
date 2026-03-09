@@ -303,7 +303,7 @@ export function FocusTimer() {
   return (
     <div className="mb-4 rounded border border-theme surface p-3">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs uppercase text-muted">Focus timer</p>
+        <p className="focus-timer-label text-xs uppercase text-muted">Focus timer</p>
         <div className="inline-flex overflow-hidden rounded border border-theme">
           <button
             type="button"
@@ -324,7 +324,7 @@ export function FocusTimer() {
 
       {mode === "stopwatch" ? (
         <div className="flex items-center justify-between">
-          <p className="font-mono text-2xl">{formatDuration(timer.elapsedSec)}</p>
+          <p className="focus-timer-display text-2xl">{formatDuration(timer.elapsedSec)}</p>
           {timer.active ? (
             <button className="rounded border border-theme px-3 py-1" onClick={() => void timer.stop()}>
               Stop
@@ -345,10 +345,10 @@ export function FocusTimer() {
               }}
             >
               <div className="pomodoro-ring-core">
-                <p className="text-xs uppercase tracking-[0.1em] text-muted">
+                <p className="focus-timer-phase text-xs uppercase tracking-[0.1em] text-muted">
                   {phase === "focus" ? "Work" : "Break"}
                 </p>
-                <p className="font-mono text-3xl">{formatDuration(remainingSec)}</p>
+                <p className="focus-timer-display text-3xl">{formatDuration(remainingSec)}</p>
               </div>
             </div>
           </div>

@@ -30,14 +30,14 @@ class PlannerDB extends Dexie {
           .put({
             id: "prefs",
             accentColor: "coral",
-            columns: 7,
+            columns: 5,
             textSize: "md",
-            spacing: "cozy",
+            spacing: "roomy",
             showCompleted: true,
-            bulletStyle: "dot",
+            bulletStyle: "none",
             weekStartMode: "MONDAY",
             showLines: true,
-            theme: "light",
+            theme: "dark",
             celebrations: true,
             updatedAt: new Date().toISOString(),
           } satisfies UserPreferences);
