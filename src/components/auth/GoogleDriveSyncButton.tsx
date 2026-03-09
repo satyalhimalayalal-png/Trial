@@ -7,6 +7,7 @@ import {
   importPlannerBackup,
   type PlannerBackupV1,
 } from "@/lib/googleDriveStore";
+import { ANON_PROFILE_ID, getActiveProfileId, setActiveProfileId, toProfileIdFromEmail } from "@/lib/profileSession";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file openid email profile";
 const DRIVE_FOLDER_NAME = "CHEQLIST";
@@ -239,14 +240,6 @@ export function GoogleDriveSyncButton({
   const disabled = useMemo(() => !clientId, [clientId]);
   const initials = (email?.trim().charAt(0) || "U").toUpperCase();
 
-  const saveToken = (token: string, expiresIn?: number) => {
-    tokenRef.current = token;
-    setSignedIn(true);
-    const expiresAt = Date.now() + (expiresIn ?? 3600) * 1000;
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
-    localStorage.setItem(TOKEN_EXP_STORAGE_KEY, String(expiresAt));
-  };
-
   const applyToken = async (response: GoogleTokenResponse) => {
     setConnecting(false);
     const token = response.access_token;
@@ -260,12 +253,24 @@ export function GoogleDriveSyncButton({
       return;
     }
     silentAttemptRef.current = false;
-    saveToken(token, response.expires_in);
+    const expiresAt = Date.now() + (response.expires_in ?? 3600) * 1000;
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    localStorage.setItem(TOKEN_EXP_STORAGE_KEY, String(expiresAt));
     const nextEmail = await getEmail(token);
     if (nextEmail) {
       setEmail(nextEmail);
       localStorage.setItem(EMAIL_STORAGE_KEY, nextEmail);
+      const nextProfileId = toProfileIdFromEmail(nextEmail);
+      const currentProfileId = getActiveProfileId();
+      if (nextProfileId !== currentProfileId) {
+        setActiveProfileId(nextProfileId);
+        setStatus("Connected. Loading account...");
+        window.location.reload();
+        return;
+      }
     }
+    tokenRef.current = token;
+    setSignedIn(true);
     setStatus("Connected");
   };
 
@@ -300,6 +305,15 @@ export function GoogleDriveSyncButton({
       const existingEmail = localStorage.getItem(EMAIL_STORAGE_KEY);
       if (existingEmail) setEmail(existingEmail);
       if (existingToken && existingExp > Date.now()) {
+        if (existingEmail) {
+          const desiredProfileId = toProfileIdFromEmail(existingEmail);
+          const activeProfileId = getActiveProfileId();
+          if (desiredProfileId !== activeProfileId) {
+            setActiveProfileId(desiredProfileId);
+            window.location.reload();
+            return;
+          }
+        }
         tokenRef.current = existingToken;
         setSignedIn(true);
         setStatus("Connected");
@@ -409,9 +423,11 @@ export function GoogleDriveSyncButton({
     setConnecting(false);
     setStatus("Not connected");
     setEmail(null);
+    setActiveProfileId(ANON_PROFILE_ID);
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(TOKEN_EXP_STORAGE_KEY);
     localStorage.removeItem(EMAIL_STORAGE_KEY);
+    window.location.reload();
   };
 
   if (variant === "panel") {
