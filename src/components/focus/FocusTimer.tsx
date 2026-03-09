@@ -32,7 +32,7 @@ export function FocusTimer() {
   const timer = useFocusTimer();
   const [mode, setMode] = useState<TimerMode>("pomodoro");
   const [expanded, setExpanded] = useState(false);
-  const [presetsOpen, setPresetsOpen] = useState(true);
+  const [presetsOpen, setPresetsOpen] = useState(false);
   const [autoStartBreaks, setAutoStartBreaks] = useState(false);
   const [autoStartPomodoros, setAutoStartPomodoros] = useState(false);
   const [phase, setPhase] = useState<PomodoroPhase>("focus");
@@ -351,18 +351,11 @@ export function FocusTimer() {
           <div className="flex flex-col items-center">
             <button
               type="button"
-              className={expanded ? "focus-timer-display cursor-pointer text-8xl leading-none" : "focus-timer-display cursor-pointer text-[2.5rem] leading-none"}
+              className={expanded ? "focus-timer-display cursor-pointer text-7xl leading-none" : "focus-timer-display cursor-pointer text-2xl leading-none"}
               onClick={() => setExpanded((prev) => !prev)}
               title={expanded ? "Minimize timer" : "Fullscreen timer"}
             >
               {formatDuration(timer.elapsedSec)}
-            </button>
-            <button
-              type="button"
-              className="mt-1 text-[10px] text-muted/80"
-              onClick={() => setExpanded((prev) => !prev)}
-            >
-              {expanded ? "Tap time to minimize" : "Tap time to expand"}
             </button>
           </div>
           {timer.active ? (
@@ -403,11 +396,8 @@ export function FocusTimer() {
                 <p className={expanded ? "focus-timer-phase text-base uppercase tracking-[0.1em] text-muted" : "focus-timer-phase text-xs uppercase tracking-[0.1em] text-muted"}>
                   {phase === "focus" ? "Work" : "Break"}
                 </p>
-                <p className={expanded ? "focus-timer-display text-[clamp(4.5rem,11vw,9rem)] leading-none" : "focus-timer-display text-[3.25rem] leading-none"}>
+                <p className={expanded ? "focus-timer-display text-7xl leading-none" : "focus-timer-display text-3xl leading-none"}>
                   {formatDuration(remainingSec)}
-                </p>
-                <p className="text-[10px] text-muted/80">
-                  {expanded ? "Tap time to minimize" : "Tap time to expand"}
                 </p>
               </div>
             </div>
