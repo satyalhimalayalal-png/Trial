@@ -100,7 +100,7 @@ export function TaskListColumn({
       </header>
 
       <div
-        className={`checklist-pane min-h-[220px] min-w-0 flex-1 overflow-y-auto ${showLines ? "lines-backdrop" : "lines-backdrop-off"}`}
+        className={`checklist-inner-pane min-h-[220px] min-w-0 flex-1 overflow-y-auto ${showLines ? "lines-backdrop" : "lines-backdrop-off"}`}
         onClick={handleLinesClick}
       >
         <SortableTaskContext container={container} tasks={tasks}>

@@ -518,6 +518,92 @@ export async function listFriends(userId: string): Promise<
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
 }
 
+export async function searchUsersByUsername(
+  actorId: string,
+  queryRaw: string,
+  limitRaw = 8,
+): Promise<
+  Array<{
+    user: SocialUser;
+    relation: "none" | "friend" | "incoming" | "outgoing";
+    request_id: number | null;
+  }>
+> {
+  const query = queryRaw.trim().toLowerCase().replace(/^@+/, "");
+  if (query.length < 2) return [];
+
+  const limit = Math.min(20, Math.max(1, Math.trunc(limitRaw)));
+  const { data: users, error: usersError } = await supabaseAdmin
+    .from("app_users")
+    .select("*")
+    .neq("id", actorId)
+    .ilike("username", `${query}%`)
+    .order("username", { ascending: true })
+    .limit(limit);
+  if (usersError) throw new Error(usersError.message);
+
+  const candidates = (users ?? []) as SocialUser[];
+  if (candidates.length === 0) return [];
+  const userIds = candidates.map((user) => user.id);
+
+  const [friendLowRes, friendHighRes, incomingRes, outgoingRes] = await Promise.all([
+    supabaseAdmin
+      .from("friendships")
+      .select("user_high_id")
+      .eq("user_low_id", actorId)
+      .in("user_high_id", userIds),
+    supabaseAdmin
+      .from("friendships")
+      .select("user_low_id")
+      .eq("user_high_id", actorId)
+      .in("user_low_id", userIds),
+    supabaseAdmin
+      .from("friend_requests")
+      .select("id,sender_id")
+      .eq("recipient_id", actorId)
+      .eq("status", "pending")
+      .in("sender_id", userIds),
+    supabaseAdmin
+      .from("friend_requests")
+      .select("id,recipient_id")
+      .eq("sender_id", actorId)
+      .eq("status", "pending")
+      .in("recipient_id", userIds),
+  ]);
+
+  if (friendLowRes.error) throw new Error(friendLowRes.error.message);
+  if (friendHighRes.error) throw new Error(friendHighRes.error.message);
+  if (incomingRes.error) throw new Error(incomingRes.error.message);
+  if (outgoingRes.error) throw new Error(outgoingRes.error.message);
+
+  const friendIds = new Set<string>();
+  for (const row of (friendLowRes.data ?? []) as Array<{ user_high_id: string }>) friendIds.add(row.user_high_id);
+  for (const row of (friendHighRes.data ?? []) as Array<{ user_low_id: string }>) friendIds.add(row.user_low_id);
+
+  const incomingByUser = new Map<string, number>();
+  for (const row of (incomingRes.data ?? []) as Array<{ id: number; sender_id: string }>) {
+    incomingByUser.set(row.sender_id, row.id);
+  }
+
+  const outgoingByUser = new Map<string, number>();
+  for (const row of (outgoingRes.data ?? []) as Array<{ id: number; recipient_id: string }>) {
+    outgoingByUser.set(row.recipient_id, row.id);
+  }
+
+  return candidates.map((user) => {
+    if (friendIds.has(user.id)) {
+      return { user, relation: "friend", request_id: null };
+    }
+    if (incomingByUser.has(user.id)) {
+      return { user, relation: "incoming", request_id: incomingByUser.get(user.id) ?? null };
+    }
+    if (outgoingByUser.has(user.id)) {
+      return { user, relation: "outgoing", request_id: outgoingByUser.get(user.id) ?? null };
+    }
+    return { user, relation: "none", request_id: null };
+  });
+}
+
 export async function updatePrivacySettings(
   userId: string,
   patch: Partial<Pick<PrivacySettings, "profile_visibility" | "stats_visibility" | "allow_friend_requests">>,
@@ -659,4 +745,24 @@ export async function updateUsername(userId: string, desiredUsernameRaw: string)
 
   if (error || !data) throw new Error(error?.message ?? "Failed to update username");
   return data;
+}
+
+export async function checkUsernameAvailability(
+  userId: string,
+  desiredUsernameRaw: string,
+): Promise<{ normalized: string; valid: boolean; available: boolean }> {
+  const normalized = desiredUsernameRaw.trim().toLowerCase().replace(/^@+/, "");
+  const valid = /^[a-z0-9._-]{3,32}$/.test(normalized);
+  if (!valid) {
+    return { normalized, valid: false, available: false };
+  }
+
+  const { data: conflict, error } = await supabaseAdmin
+    .from("app_users")
+    .select("id")
+    .eq("username", normalized)
+    .neq("id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return { normalized, valid: true, available: !conflict };
 }

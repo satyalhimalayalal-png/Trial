@@ -129,11 +129,6 @@ export function PreferencesSidebar({ preferences, onPatch }: PreferencesSidebarP
         <ButtonGroup value={preferences.theme} options={THEME_OPTIONS} onChange={(theme) => void onPatch({ theme })} />
       </div>
 
-      <div className="mt-3">
-        <p className="text-xs uppercase text-muted">Account</p>
-        <p className="mt-1 text-[11px] text-muted">Use the account icon in the top bar for login, friends, and privacy sharing.</p>
-      </div>
-
       <ToggleRow label="Show completed" checked={preferences.showCompleted} onChange={(showCompleted) => void onPatch({ showCompleted })} />
       <ToggleRow label="Celebrations" checked={preferences.celebrations} onChange={(celebrations) => void onPatch({ celebrations })} />
     </aside>

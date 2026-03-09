@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format, startOfDay, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from "date-fns";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getDb } from "@/lib/db/dexie";
+import { PLANNER_DATA_CHANGED_EVENT } from "@/lib/sync/realtimeSyncSignal";
 import { useFocusStore } from "@/state/useFocusStore";
 import type { Task } from "@/types/domain";
 
@@ -37,8 +38,8 @@ function forEachDaySlice(
 
 export function useAnalyticsHistory() {
   const [nowTick, setNowTick] = useState(Date.now());
-  const lastSocialSyncAtRef = useRef(0);
   const lastSocialSyncHashRef = useRef<string>("");
+  const socialSyncTimerRef = useRef<number | null>(null);
   const activeSessionId = useFocusStore((state) => state.activeSessionId);
   const activeStartedAt = useFocusStore((state) => state.activeStartedAt);
   const activeTaskId = useFocusStore((state) => state.activeTaskId);
@@ -350,42 +351,71 @@ export function useAnalyticsHistory() {
     };
   }, [dayTotalsMap, totalFocusSec, withRealtime, hourTotals24, dailyFocus, weeklyFocus, monthlyFocus, yearHeatmap.weeks]);
 
+  const sharedSnapshotRef = useRef(sharedSnapshot);
+  useEffect(() => {
+    sharedSnapshotRef.current = sharedSnapshot;
+  }, [sharedSnapshot]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const accessToken = localStorage.getItem("cheqlist-google-access-token");
-    if (!accessToken) return;
-
-    const hash = JSON.stringify(sharedSnapshot);
-    const nowMs = Date.now();
-    if (hash === lastSocialSyncHashRef.current && nowMs - lastSocialSyncAtRef.current < 5 * 60_000) {
-      return;
-    }
-    if (nowMs - lastSocialSyncAtRef.current < 60_000) {
-      return;
-    }
-
     let cancelled = false;
-    void fetch("/api/social/snapshot", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(sharedSnapshot),
-    })
-      .then((response) => {
-        if (!response.ok || cancelled) return;
-        lastSocialSyncAtRef.current = Date.now();
-        lastSocialSyncHashRef.current = hash;
+
+    const runSnapshotSync = () => {
+      const accessToken = localStorage.getItem("cheqlist-google-access-token");
+      if (!accessToken) return;
+      const snapshot = sharedSnapshotRef.current;
+      const hash = JSON.stringify(snapshot);
+      if (hash === lastSocialSyncHashRef.current) return;
+
+      void fetch("/api/social/snapshot", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(snapshot),
       })
-      .catch(() => {
-        // avoid breaking analytics UI on social snapshot sync failures
-      });
+        .then((response) => {
+          if (!response.ok || cancelled) return;
+          lastSocialSyncHashRef.current = hash;
+        })
+        .catch(() => {
+          // avoid breaking analytics UI on social snapshot sync failures
+        });
+    };
+
+    const scheduleSnapshotSync = (delayMs = 250) => {
+      if (socialSyncTimerRef.current) {
+        window.clearTimeout(socialSyncTimerRef.current);
+      }
+      socialSyncTimerRef.current = window.setTimeout(() => {
+        socialSyncTimerRef.current = null;
+        runSnapshotSync();
+      }, delayMs);
+    };
+
+    const onDataChanged = () => scheduleSnapshotSync(250);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") scheduleSnapshotSync(0);
+    };
+    const onOnline = () => scheduleSnapshotSync(0);
+
+    scheduleSnapshotSync(0);
+    window.addEventListener(PLANNER_DATA_CHANGED_EVENT, onDataChanged as EventListener);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", onOnline);
 
     return () => {
       cancelled = true;
+      if (socialSyncTimerRef.current) {
+        window.clearTimeout(socialSyncTimerRef.current);
+        socialSyncTimerRef.current = null;
+      }
+      window.removeEventListener(PLANNER_DATA_CHANGED_EVENT, onDataChanged as EventListener);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", onOnline);
     };
-  }, [sharedSnapshot]);
+  }, []);
 
   return {
     ready: Boolean(sessions && tasks && lists),

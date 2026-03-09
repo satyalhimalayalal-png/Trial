@@ -210,6 +210,19 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
     });
   }, [hourTotals, lineScaleMax]);
 
+  const recentDaily = useMemo(() => {
+    if (!stats?.daily_totals_30d?.length) {
+      return Array.from({ length: 7 }, (_, index) => ({ day: subDays(new Date(), 6 - index), value: 0 }));
+    }
+    const slice = stats.daily_totals_30d.slice(-7);
+    const start = subDays(new Date(), slice.length - 1);
+    return slice.map((value, index) => ({ day: addDays(start, index), value }));
+  }, [stats?.daily_totals_30d]);
+  const maxRecentDaily = useMemo(
+    () => Math.max(...recentDaily.map((entry) => entry.value), 1),
+    [recentDaily],
+  );
+
   if (loading) {
     return <main className="app-shell min-h-[100dvh] p-4">Loading friend analytics...</main>;
   }
@@ -260,6 +273,21 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
             <section className="rounded border border-theme surface p-3">
               <h2 className="text-sm font-semibold">{user?.display_name ?? `@${user?.username ?? ""}`}</h2>
               <p className="mt-1 text-xs text-muted">@{user?.username}</p>
+            </section>
+
+            <section className="mt-4 rounded border border-theme surface p-3">
+              <h2 className="text-sm font-semibold">Daily totals</h2>
+              <div className="mt-3 grid gap-2 md:grid-cols-7">
+                {recentDaily.map((entry, index) => (
+                  <div key={`${entry.day.toISOString()}-${index}`} className="rounded border border-theme p-2">
+                    <p className="text-xs text-muted">{format(entry.day, "EEE")}</p>
+                    <div className="surface-soft mt-1 h-2 w-full overflow-hidden rounded">
+                      <div className="h-full rounded bg-accent transition-[width] duration-300" style={{ width: `${toPercent(entry.value, maxRecentDaily)}%` }} />
+                    </div>
+                    <p className="mt-1 font-medium">{formatSec(entry.value)}</p>
+                  </div>
+                ))}
+              </div>
             </section>
 
             <section className="mt-4 rounded border border-theme surface p-3">
@@ -440,4 +468,3 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
     </main>
   );
 }
-

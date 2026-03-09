@@ -328,7 +328,7 @@ export function GoogleDriveSyncButton({
     syncingRef.current = syncing;
   }, [syncing]);
 
-  const scheduleRealtimeSync = (delayMs = 900) => {
+  const scheduleRealtimeSync = (delayMs = 250) => {
     if (realtimeSyncTimerRef.current) {
       window.clearTimeout(realtimeSyncTimerRef.current);
     }
@@ -457,7 +457,7 @@ export function GoogleDriveSyncButton({
     const onDataChanged = () => {
       if (suppressRealtimeSyncRef.current) return;
       pendingSyncRef.current = true;
-      scheduleRealtimeSync(900);
+      scheduleRealtimeSync(250);
     };
     const onFocusSync = () => {
       if (!tokenRef.current || !signedIn) return;
