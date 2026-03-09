@@ -104,7 +104,7 @@
   --todo-border-color: #1b1c20;
   --task-grid-line-color: #2a2f36;
   --checklist-background: #171a20;
-  --checklist-inner-background: #202833;
+  --checklist-inner-background: #141922;
   --todo-checkbox: color-mix(in oklab, var(--custom-color) 50%, transparent);
   --todo-checkbox-done-color: #484848;
   --todo-button-bg: #484848;
@@ -132,20 +132,20 @@
   --custom-color-highlight: #ed0c00;
 }
 [data-accent="blue"] {
-  --custom-color: #2f72ea;
-  --custom-color-highlight: #1d63c9;
+  --custom-color: #4b82d6;
+  --custom-color-highlight: #3b6fc0;
 }
 [data-accent="green"] {
-  --custom-color: #1da16f;
-  --custom-color-highlight: #168d61;
+  --custom-color: #2f9d8b;
+  --custom-color-highlight: #248174;
 }
 [data-accent="amber"] {
-  --custom-color: #cf8a00;
-  --custom-color-highlight: #af7200;
+  --custom-color: #c28a36;
+  --custom-color-highlight: #a87422;
 }
 [data-accent="rose"] {
-  --custom-color: #d43e7a;
-  --custom-color-highlight: #b8366b;
+  --custom-color: #c95f87;
+  --custom-color-highlight: #b24a73;
 }
 
 [data-text-size="sm"] {

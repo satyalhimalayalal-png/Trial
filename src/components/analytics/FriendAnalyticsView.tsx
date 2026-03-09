@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from "date-fns";
 import { TopAccentBar } from "@/components/planner/TopAccentBar";
 import { PreferencesSidebar } from "@/components/planner/PreferencesSidebar";
@@ -12,6 +12,7 @@ const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
 
 type ChartType = "bar" | "line";
 type Point = { label: string; value: number };
+type PeakScope = "average" | number;
 
 function formatSec(sec: number): string {
   const h = Math.floor(sec / 3600);
@@ -129,6 +130,7 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
   const [user, setUser] = useState<SocialUser | null>(null);
   const [stats, setStats] = useState<SharedStatsSnapshot | null>(null);
   const [chartType, setChartType] = useState<ChartType>("bar");
+  const [peakScope, setPeakScope] = useState<PeakScope>(6);
   const [selectedHeatCell, setSelectedHeatCell] = useState<{ dateKey: string; value: number } | null>(null);
   const [chartTooltip, setChartTooltip] = useState<{ x: number; y: number; label: string; value: string; placement: "above" | "below" } | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -189,27 +191,6 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
     return Math.max(...values, 1);
   }, [heatmap]);
 
-  const hourTotals = stats?.hour_totals_24 ?? Array.from({ length: 24 }, () => 0);
-  const maxHour = Math.max(...hourTotals, 1);
-  const lineScaleMax = useMemo(() => {
-    const sorted = [...hourTotals].sort((a, b) => a - b);
-    const p90 = sorted[Math.floor(sorted.length * 0.9)] ?? 1;
-    return Math.max(1, p90);
-  }, [hourTotals]);
-
-  const linePointsScaled = useMemo(() => {
-    const width = 960;
-    const height = 176;
-    const top = 12;
-    const bottom = height - 12;
-    const drawableH = bottom - top;
-    return hourTotals.map((sec, hour) => {
-      const x = ((hour + 0.5) / 24) * width;
-      const y = bottom - (Math.min(Math.max(0, sec), lineScaleMax) / lineScaleMax) * drawableH;
-      return { x, y, hour, sec };
-    });
-  }, [hourTotals, lineScaleMax]);
-
   const recentDaily = useMemo(() => {
     if (!stats?.daily_totals_30d?.length) {
       return Array.from({ length: 7 }, (_, index) => ({ day: subDays(new Date(), 6 - index), value: 0 }));
@@ -222,6 +203,44 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
     () => Math.max(...recentDaily.map((entry) => entry.value), 1),
     [recentDaily],
   );
+  const hourTotals = stats?.hour_totals_24 ?? Array.from({ length: 24 }, () => 0);
+  const selectedHourTotals = useMemo(() => {
+    if (peakScope === "average") return hourTotals;
+    const selectedDaily = recentDaily[peakScope]?.value ?? 0;
+    const avgDaily = recentDaily.reduce((sum, entry) => sum + entry.value, 0) / Math.max(1, recentDaily.length);
+    if (avgDaily <= 0) return hourTotals;
+    const scale = selectedDaily / avgDaily;
+    return hourTotals.map((value) => Math.max(0, Math.round(value * scale)));
+  }, [hourTotals, peakScope, recentDaily]);
+  const maxHour = useMemo(() => Math.max(...selectedHourTotals, 1), [selectedHourTotals]);
+  const selectedPeakLabel = useMemo(() => {
+    if (peakScope === "average") return "Average (last 7 days)";
+    const selected = recentDaily[peakScope];
+    if (!selected) return "Average (last 7 days)";
+    return format(selected.day, "EEE, MMM d");
+  }, [peakScope, recentDaily]);
+  const lineScaleMax = useMemo(() => {
+    const sorted = [...selectedHourTotals].sort((a, b) => a - b);
+    const p90 = sorted[Math.floor(sorted.length * 0.9)] ?? 1;
+    return Math.max(1, p90);
+  }, [selectedHourTotals]);
+
+  const linePointsScaled = useMemo(() => {
+    const width = 960;
+    const height = 176;
+    const top = 12;
+    const bottom = height - 12;
+    const drawableH = bottom - top;
+    return selectedHourTotals.map((sec, hour) => {
+      const x = ((hour + 0.5) / 24) * width;
+      const y = bottom - (Math.min(Math.max(0, sec), lineScaleMax) / lineScaleMax) * drawableH;
+      return { x, y, hour, sec };
+    });
+  }, [lineScaleMax, selectedHourTotals]);
+
+  useEffect(() => {
+    setPeakScope(Math.max(0, recentDaily.length - 1));
+  }, [recentDaily.length]);
 
   if (loading) {
     return <main className="app-shell min-h-[100dvh] p-4">Loading friend analytics...</main>;
@@ -235,6 +254,7 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
       data-spacing={preferences.spacing}
       data-columns={preferences.columns}
       className="app-shell min-h-[100dvh]"
+      style={{ "--custom-color": "#5a7fb8", "--custom-color-highlight": "#4c72ad" } as CSSProperties}
     >
       <TopAccentBar
         mode="analytics"
@@ -276,16 +296,30 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
             </section>
 
             <section className="mt-4 rounded border border-theme surface p-3">
-              <h2 className="text-sm font-semibold">Daily totals</h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">Daily totals</h2>
+                <button
+                  type="button"
+                  className={`rounded border px-2 py-1 text-xs ${peakScope === "average" ? "border-[var(--custom-color)] text-[var(--custom-color)]" : "border-theme"}`}
+                  onClick={() => setPeakScope("average")}
+                >
+                  Average
+                </button>
+              </div>
               <div className="mt-3 grid gap-2 md:grid-cols-7">
                 {recentDaily.map((entry, index) => (
-                  <div key={`${entry.day.toISOString()}-${index}`} className="rounded border border-theme p-2">
+                  <button
+                    key={`${entry.day.toISOString()}-${index}`}
+                    type="button"
+                    className={`rounded border p-2 text-left ${peakScope === index ? "border-[var(--custom-color)]" : "border-theme"}`}
+                    onClick={() => setPeakScope(index)}
+                  >
                     <p className="text-xs text-muted">{format(entry.day, "EEE")}</p>
                     <div className="surface-soft mt-1 h-2 w-full overflow-hidden rounded">
                       <div className="h-full rounded bg-accent transition-[width] duration-300" style={{ width: `${toPercent(entry.value, maxRecentDaily)}%` }} />
                     </div>
                     <p className="mt-1 font-medium">{formatSec(entry.value)}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
             </section>
@@ -310,11 +344,12 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                   </button>
                 </div>
               </div>
+              <p className="mt-2 text-xs text-muted">{selectedPeakLabel}</p>
               <div className="mt-3 overflow-x-auto">
                 <div ref={chartRef} className="relative min-w-[640px]">
                   {chartType === "bar" ? (
                     <div className="grid h-44 grid-cols-24 items-end gap-1">
-                      {hourTotals.map((sec, hour) => (
+                      {selectedHourTotals.map((sec, hour) => (
                         <div key={hour} className="flex min-w-0 items-end justify-center">
                           <div
                             className="w-full rounded-t-[3px] bg-accent transition-[height] duration-300"
@@ -367,6 +402,19 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                       <div className="text-muted">{chartTooltip.value}</div>
                     </div>
                   ) : null}
+                  {chartType === "bar" ? (
+                    <div className="relative mt-2 h-4 text-xs text-muted">
+                      {[0, 3, 6, 9, 12, 15, 18, 21].map((hour) => (
+                        <span
+                          key={hour}
+                          className="absolute -translate-x-1/2"
+                          style={{ left: `${((hour + 0.5) / 24) * 100}%` }}
+                        >
+                          {hour.toString().padStart(2, "0")}:00
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -403,7 +451,7 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                                 style={{
                                   backgroundColor: cell.inRange
                                     ? cell.value > 0
-                                      ? `color-mix(in oklab, #cf2d2d ${redMix}%, var(--app-background))`
+                                      ? `color-mix(in oklab, var(--custom-color) ${redMix}%, var(--app-background))`
                                       : "color-mix(in oklab, #8f959d 34%, var(--app-background))"
                                     : "var(--ui-button-bg-alt)",
                                   opacity: cell.inRange ? 1 : 0.35,
@@ -439,8 +487,8 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                   <p className="text-lg font-semibold">{stats.pomodoros_completed_30d}</p>
                 </div>
                 <div className="rounded border border-theme p-2">
-                  <p className="text-xs text-muted">Current streak</p>
-                  <p className="text-lg font-semibold">{stats.current_streak_days} days</p>
+                  <p className="text-xs text-muted">Longest streak</p>
+                  <p className="text-lg font-semibold">{stats.longest_streak_days} days</p>
                 </div>
               </div>
             </section>

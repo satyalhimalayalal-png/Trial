@@ -22,6 +22,7 @@ function toPercent(value: number, max: number): number {
 
 type ChartType = "bar" | "line";
 type Point = { label: string; value: number };
+type PeakScope = "average" | number;
 
 function MiniBarChart({ points }: { points: Point[] }) {
   const max = Math.max(...points.map((point) => point.value), 1);
@@ -87,15 +88,15 @@ function MiniBarChart({ points }: { points: Point[] }) {
 }
 
 export function AnalyticsView() {
-  const { weekStart, dailyTotals, hourTotals, prevWeek, nextWeek } = useAnalyticsWeek();
+  const { weekStart, dailyTotals, hourTotals, hourByDayTotals, prevWeek, nextWeek } = useAnalyticsWeek();
   const history = useAnalyticsHistory();
   const { preferences, patchPreferences } = usePreferences();
 
   const maxDaily = Math.max(...dailyTotals, 1);
-  const maxHour = Math.max(...hourTotals, 1);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [chartType, setChartType] = useState<ChartType>("bar");
+  const [peakScope, setPeakScope] = useState<PeakScope>("average");
   const [chartTooltip, setChartTooltip] = useState<{ x: number; y: number; label: string; value: string; placement: "above" | "below" } | null>(null);
   const [selectedHeatCell, setSelectedHeatCell] = useState<{ dateKey: string; value: number } | null>(null);
 
@@ -106,23 +107,38 @@ export function AnalyticsView() {
   const tooltipTimerRef = useRef<number | null>(null);
   const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const currentYearLabel = String(new Date().getFullYear());
+  const todayIndexInViewedWeek = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((todayStart.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000));
+    return diffDays >= 0 && diffDays <= 6 ? diffDays : null;
+  }, [weekStart]);
+  const selectedHourTotals = useMemo(() => {
+    if (peakScope === "average") return hourTotals;
+    return hourByDayTotals[peakScope] ?? hourTotals;
+  }, [hourByDayTotals, hourTotals, peakScope]);
+  const maxHour = useMemo(() => Math.max(...selectedHourTotals, 1), [selectedHourTotals]);
+  const selectedPeakLabel = useMemo(() => {
+    if (peakScope === "average") return "Weekly average";
+    return `${weekdayLabels[peakScope]} focus pattern`;
+  }, [peakScope]);
   const lineScaleMax = useMemo(() => {
-    const sorted = [...hourTotals].sort((a, b) => a - b);
+    const sorted = [...selectedHourTotals].sort((a, b) => a - b);
     const p90 = sorted[Math.floor(sorted.length * 0.9)] ?? 1;
     return Math.max(1, p90);
-  }, [hourTotals]);
+  }, [selectedHourTotals]);
   const linePointsScaled = useMemo(() => {
     const width = 960;
     const height = 176;
     const top = 12;
     const bottom = height - 12;
     const drawableH = bottom - top;
-    return hourTotals.map((sec, hour) => {
+    return selectedHourTotals.map((sec, hour) => {
       const x = ((hour + 0.5) / 24) * width;
       const y = bottom - (Math.min(Math.max(0, sec), lineScaleMax) / lineScaleMax) * drawableH;
       return { x, y, hour, sec };
     });
-  }, [hourTotals, lineScaleMax]);
+  }, [lineScaleMax, selectedHourTotals]);
 
   const avgDailySec = useMemo(() => {
     if (!history.dailyFocus.length) return 0;
@@ -166,6 +182,14 @@ export function AnalyticsView() {
     heatmapScrollRef.current.scrollLeft = Math.max(0, left);
     initialHeatmapPositionedRef.current = true;
   }, [history.yearHeatmap.yearTicks, currentYearLabel]);
+
+  useEffect(() => {
+    if (todayIndexInViewedWeek === null) {
+      setPeakScope("average");
+      return;
+    }
+    setPeakScope(todayIndexInViewedWeek);
+  }, [todayIndexInViewedWeek]);
 
   const queueTooltip = (target: Element, hour: number, sec: number) => {
     if (!chartRef.current) return;
@@ -231,19 +255,33 @@ export function AnalyticsView() {
         </div>
 
         <section className="rounded border border-theme surface p-3">
-          <h2 className="text-sm font-semibold">Daily totals</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Daily totals</h2>
+            <button
+              type="button"
+              className={`rounded border px-2 py-1 text-xs ${peakScope === "average" ? "border-[var(--custom-color)] text-[var(--custom-color)]" : "border-theme"}`}
+              onClick={() => setPeakScope("average")}
+            >
+              Average
+            </button>
+          </div>
           <div className="mt-3 grid gap-2 md:grid-cols-7">
             {Array.from({ length: 7 }, (_, i) => {
               const day = addDays(weekStart, i);
               const value = dailyTotals[i] ?? 0;
               return (
-                <div key={i} className="rounded border border-theme p-2">
+                <button
+                  key={i}
+                  type="button"
+                  className={`rounded border p-2 text-left ${peakScope === i ? "border-[var(--custom-color)]" : "border-theme"}`}
+                  onClick={() => setPeakScope(i)}
+                >
                   <p className="text-xs text-muted">{format(day, "EEE")}</p>
                   <div className="surface-soft mt-1 h-2 w-full overflow-hidden rounded">
                     <div className="h-full rounded bg-accent transition-[width] duration-300" style={{ width: `${toPercent(value, maxDaily)}%` }} />
                   </div>
                   <p className="mt-1 font-medium">{formatSec(value)}</p>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -269,11 +307,12 @@ export function AnalyticsView() {
               </button>
             </div>
           </div>
+          <p className="mt-2 text-xs text-muted">{selectedPeakLabel}</p>
           <div className="mt-3 overflow-x-auto">
             <div ref={chartRef} className="relative min-w-[640px]">
               {chartType === "bar" ? (
                 <div className="grid h-44 grid-cols-24 items-end gap-1">
-                  {hourTotals.map((sec, hour) => {
+                  {selectedHourTotals.map((sec, hour) => {
                     const valuePercent = toPercent(sec, maxHour);
                     return (
                       <div key={hour} className="flex min-w-0 items-end justify-center">
@@ -412,7 +451,7 @@ export function AnalyticsView() {
                               borderColor: isSelected ? "var(--custom-color)" : undefined,
                               backgroundColor: cell.inRange
                                 ? sec > 0
-                                  ? `color-mix(in oklab, #cf2d2d ${mixPercent}%, var(--app-background))`
+                                  ? `color-mix(in oklab, var(--custom-color) ${mixPercent}%, var(--app-background))`
                                   : "color-mix(in oklab, #8f959d 34%, var(--app-background))"
                                 : "var(--ui-button-bg-alt)",
                               opacity: cell.inRange ? 1 : 0.35,

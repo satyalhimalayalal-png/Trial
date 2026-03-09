@@ -26,12 +26,6 @@ type PendingIncoming = {
   created_at: string;
 };
 
-type PendingOutgoing = {
-  id: number;
-  recipient: SocialUser;
-  created_at: string;
-};
-
 type UserSuggestion = {
   user: SocialUser;
   relation: "none" | "friend" | "incoming" | "outgoing";
@@ -44,7 +38,6 @@ interface SocialCachePayload {
   viewer: SocialUser;
   friends: FriendWithSnapshot[];
   incoming: PendingIncoming[];
-  outgoing: PendingOutgoing[];
   privacy: Pick<PrivacySettings, "profile_visibility" | "stats_visibility" | "allow_friend_requests">;
   cachedAt: number;
 }
@@ -89,14 +82,13 @@ export function FriendsPanel() {
   const [recipientUsername, setRecipientUsername] = useState("");
   const [friends, setFriends] = useState<FriendWithSnapshot[]>([]);
   const [incoming, setIncoming] = useState<PendingIncoming[]>([]);
-  const [outgoing, setOutgoing] = useState<PendingOutgoing[]>([]);
   const [privacy, setPrivacy] = useState<Pick<PrivacySettings, "profile_visibility" | "stats_visibility" | "allow_friend_requests">>(
     DEFAULT_PRIVACY,
   );
   const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
-  const [privacyOpen, setPrivacyOpen] = useState(true);
-  const [friendsOpen, setFriendsOpen] = useState(true);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [friendsOpen, setFriendsOpen] = useState(false);
 
   const authenticated = useMemo(() => Boolean(token), [token]);
   const canUseFriends = Boolean(viewer?.username_is_custom);
@@ -113,7 +105,6 @@ export function FriendsPanel() {
       setUsernameDraft(parsed.viewer.username);
       setFriends(parsed.friends ?? []);
       setIncoming(parsed.incoming ?? []);
-      setOutgoing(parsed.outgoing ?? []);
       setPrivacy(parsed.privacy ?? DEFAULT_PRIVACY);
       return true;
     } catch {
@@ -153,7 +144,7 @@ export function FriendsPanel() {
         const meRes = await socialFetch<{ user: SocialUser }>("/api/social/me");
         const [friendsRes, requestsRes, privacyRes] = await Promise.all([
           socialFetch<{ friends: FriendWithSnapshot[] }>("/api/social/friends"),
-          socialFetch<{ incoming: PendingIncoming[]; outgoing: PendingOutgoing[] }>("/api/social/requests"),
+          socialFetch<{ incoming: PendingIncoming[] }>("/api/social/requests"),
           socialFetch<{ privacy: PrivacySettings }>("/api/social/privacy"),
         ]);
 
@@ -167,14 +158,12 @@ export function FriendsPanel() {
         if (!usernameEditing) setUsernameDraft(meRes.user.username);
         setFriends(friendsRes.friends ?? []);
         setIncoming(requestsRes.incoming ?? []);
-        setOutgoing(requestsRes.outgoing ?? []);
         setPrivacy(nextPrivacy);
         setStatus("");
         writeCache({
           viewer: meRes.user,
           friends: friendsRes.friends ?? [],
           incoming: requestsRes.incoming ?? [],
-          outgoing: requestsRes.outgoing ?? [],
           privacy: nextPrivacy,
           cachedAt: Date.now(),
         });
@@ -477,18 +466,6 @@ export function FriendsPanel() {
                       <option value="public">public</option>
                     </select>
                   </label>
-                  <label className="flex items-center justify-between gap-2">
-                    <span>Requests</span>
-                    <select
-                      className="rounded border border-theme surface px-2 py-1"
-                      value={privacy.allow_friend_requests}
-                      onChange={(event) => void updatePrivacy({ allow_friend_requests: event.target.value as typeof privacy.allow_friend_requests })}
-                      disabled={busy || loading}
-                    >
-                      <option value="everyone">everyone</option>
-                      <option value="nobody">nobody</option>
-                    </select>
-                  </label>
                 </div>
               </div>
             ) : null}
@@ -561,7 +538,7 @@ export function FriendsPanel() {
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
-                              className="rounded border border-theme px-2 py-0.5 text-[11px]"
+                              className="rounded border border-green-500 px-2 py-0.5 text-[11px] text-green-500"
                               onClick={() => item.request_id && void resolveRequest(item.request_id, "accept")}
                               disabled={busy || !item.request_id}
                             >
@@ -569,7 +546,7 @@ export function FriendsPanel() {
                             </button>
                             <button
                               type="button"
-                              className="rounded border border-theme px-2 py-0.5 text-[11px]"
+                              className="rounded border border-red-500 px-2 py-0.5 text-[11px] text-red-500"
                               onClick={() => item.request_id && void resolveRequest(item.request_id, "decline")}
                               disabled={busy || !item.request_id}
                             >
@@ -590,28 +567,13 @@ export function FriendsPanel() {
                       <div key={request.id} className="flex items-center justify-between rounded border border-theme p-1.5">
                         <span className="truncate">@{request.sender.username}</span>
                         <div className="flex items-center gap-1">
-                          <button type="button" className="rounded border border-theme px-2 py-0.5 text-[11px]" onClick={() => void resolveRequest(request.id, "accept")} disabled={busy || !canUseFriends}>
+                          <button type="button" className="rounded border border-green-500 px-2 py-0.5 text-[11px] text-green-500" onClick={() => void resolveRequest(request.id, "accept")} disabled={busy || !canUseFriends}>
                             ✓
                           </button>
-                          <button type="button" className="rounded border border-theme px-2 py-0.5 text-[11px]" onClick={() => void resolveRequest(request.id, "decline")} disabled={busy || !canUseFriends}>
+                          <button type="button" className="rounded border border-red-500 px-2 py-0.5 text-[11px] text-red-500" onClick={() => void resolveRequest(request.id, "decline")} disabled={busy || !canUseFriends}>
                             ✕
                           </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <p className="text-muted">Outgoing ({outgoing.length})</p>
-                  <div className="mt-1 space-y-1">
-                    {outgoing.length === 0 ? <p className="text-muted">None</p> : null}
-                    {outgoing.map((request) => (
-                      <div key={request.id} className="flex items-center justify-between rounded border border-theme p-1.5">
-                        <span className="truncate">@{request.recipient.username}</span>
-                        <button type="button" className="rounded border border-theme px-2 py-0.5 text-[11px]" onClick={() => void resolveRequest(request.id, "cancel")} disabled={busy || !canUseFriends}>
-                          Cancel
-                        </button>
                       </div>
                     ))}
                   </div>
@@ -625,7 +587,7 @@ export function FriendsPanel() {
                       <div key={friend.user.id} className="relative rounded border border-theme p-2 pr-8">
                         <button
                           type="button"
-                          className="absolute right-1 top-1 rounded border border-theme px-1.5 py-0.5 text-[11px]"
+                          className="absolute right-1 top-1 rounded border border-red-500 px-1.5 py-0.5 text-[11px] text-red-500"
                           onClick={() => void removeFriend(friend.user.id, friend.user.username)}
                           disabled={busy || !canUseFriends}
                           aria-label={`Remove @${friend.user.username}`}

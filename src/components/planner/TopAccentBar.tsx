@@ -52,15 +52,9 @@ function IconChart() {
 function IconSettings() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-      <path d="M12 1v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M12 17v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="m4.22 4.22 4.24 4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="m15.54 15.54 4.24 4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M1 12h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M17 12h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="m4.22 19.78 4.24-4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="m15.54 8.46 4.24-4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="m14.8 4.2 5 5-7.6 7.6-5-5L14.8 4.2Z" stroke="currentColor" strokeWidth="2" />
+      <path d="M5.2 15.8 3 18l3 3 2.2-2.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="m13.6 5.4 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
