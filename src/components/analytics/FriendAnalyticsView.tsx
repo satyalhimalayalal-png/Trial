@@ -1,7 +1,7 @@
 "use client";
 
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import { addDays, format, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from "date-fns";
+import { addDays, format, startOfDay, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from "date-fns";
 import { TopAccentBar } from "@/components/planner/TopAccentBar";
 import { PreferencesSidebar } from "@/components/planner/PreferencesSidebar";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
@@ -13,6 +13,7 @@ const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
 type ChartType = "bar" | "line";
 type Point = { label: string; value: number };
 type PeakScope = "average" | number;
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 function formatSec(sec: number): string {
   const h = Math.floor(sec / 3600);
@@ -76,11 +77,9 @@ function MiniBarChart({ points }: { points: Point[] }) {
 
 function buildHeatmap(snapshot: SharedStatsSnapshot) {
   const byDate = new Map(snapshot.year_heatmap_days.map((entry) => [entry.dateKey, entry.value]));
-  const minDate = snapshot.year_heatmap_days[0]?.dateKey ?? `${new Date().getFullYear()}-01-01`;
-  const maxDate = snapshot.year_heatmap_days[snapshot.year_heatmap_days.length - 1]?.dateKey ?? `${new Date().getFullYear()}-12-31`;
-
-  const rangeStart = new Date(`${minDate}T00:00:00`);
-  const rangeEnd = new Date(`${maxDate}T00:00:00`);
+  const currentYear = new Date().getFullYear();
+  const rangeStart = new Date(currentYear - 1, 0, 1);
+  const rangeEnd = new Date(currentYear + 1, 11, 31);
   const gridStart = startOfWeek(rangeStart, { weekStartsOn: 0 });
   const gridEnd = addDays(startOfWeek(rangeEnd, { weekStartsOn: 0 }), 6);
 
@@ -135,6 +134,10 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
   const [chartTooltip, setChartTooltip] = useState<{ x: number; y: number; label: string; value: string; placement: "above" | "below" } | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
+  const heatmapScrollRef = useRef<HTMLDivElement | null>(null);
+  const initialHeatmapPositionedRef = useRef(false);
+  const tooltipTimerRef = useRef<number | null>(null);
+  const currentYearLabel = String(new Date().getFullYear());
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -158,6 +161,7 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
     let cancelled = false;
     void fetch(`/api/social/profile/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -190,35 +194,41 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
     const values = heatmap.weeks.flat().filter((cell) => cell.inRange).map((cell) => cell.value);
     return Math.max(...values, 1);
   }, [heatmap]);
-
-  const recentDaily = useMemo(() => {
-    if (!stats?.daily_totals_30d?.length) {
-      return Array.from({ length: 7 }, (_, index) => ({ day: subDays(new Date(), 6 - index), value: 0 }));
-    }
-    const slice = stats.daily_totals_30d.slice(-7);
-    const start = subDays(new Date(), slice.length - 1);
-    return slice.map((value, index) => ({ day: addDays(start, index), value }));
-  }, [stats?.daily_totals_30d]);
-  const maxRecentDaily = useMemo(
-    () => Math.max(...recentDaily.map((entry) => entry.value), 1),
-    [recentDaily],
+  const yearBreakWeeks = useMemo(
+    () => new Set(heatmap?.yearTicks.map((tick) => tick.weekIndex) ?? []),
+    [heatmap?.yearTicks],
   );
+
+  const currentWeekDaily = useMemo(() => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+    const byDate = new Map<string, number>();
+    const values = stats?.daily_totals_30d ?? [];
+    const start = subDays(startOfDay(new Date()), Math.max(0, values.length - 1));
+    values.forEach((value, index) => {
+      byDate.set(format(addDays(start, index), "yyyy-MM-dd"), value);
+    });
+    return Array.from({ length: 7 }, (_, index) => {
+      const day = addDays(weekStart, index);
+      const key = format(day, "yyyy-MM-dd");
+      return { day, value: byDate.get(key) ?? 0 };
+    });
+  }, [stats?.daily_totals_30d]);
+
+  const maxRecentDaily = useMemo(() => Math.max(...currentWeekDaily.map((entry) => entry.value), 1), [currentWeekDaily]);
   const hourTotals = stats?.hour_totals_24 ?? Array.from({ length: 24 }, () => 0);
   const selectedHourTotals = useMemo(() => {
     if (peakScope === "average") return hourTotals;
-    const selectedDaily = recentDaily[peakScope]?.value ?? 0;
-    const avgDaily = recentDaily.reduce((sum, entry) => sum + entry.value, 0) / Math.max(1, recentDaily.length);
+    const selectedDaily = currentWeekDaily[peakScope]?.value ?? 0;
+    const avgDaily = currentWeekDaily.reduce((sum, entry) => sum + entry.value, 0) / Math.max(1, currentWeekDaily.length);
     if (avgDaily <= 0) return hourTotals;
     const scale = selectedDaily / avgDaily;
     return hourTotals.map((value) => Math.max(0, Math.round(value * scale)));
-  }, [hourTotals, peakScope, recentDaily]);
+  }, [hourTotals, peakScope, currentWeekDaily]);
   const maxHour = useMemo(() => Math.max(...selectedHourTotals, 1), [selectedHourTotals]);
   const selectedPeakLabel = useMemo(() => {
-    if (peakScope === "average") return "Average (last 7 days)";
-    const selected = recentDaily[peakScope];
-    if (!selected) return "Average (last 7 days)";
-    return format(selected.day, "EEE, MMM d");
-  }, [peakScope, recentDaily]);
+    if (peakScope === "average") return "Weekly average";
+    return `${WEEKDAY_LABELS[peakScope]} focus pattern`;
+  }, [peakScope]);
   const lineScaleMax = useMemo(() => {
     const sorted = [...selectedHourTotals].sort((a, b) => a - b);
     const p90 = sorted[Math.floor(sorted.length * 0.9)] ?? 1;
@@ -239,8 +249,50 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
   }, [lineScaleMax, selectedHourTotals]);
 
   useEffect(() => {
-    setPeakScope(Math.max(0, recentDaily.length - 1));
-  }, [recentDaily.length]);
+    const todayIndex = new Date().getDay();
+    setPeakScope(todayIndex);
+  }, []);
+
+  useEffect(() => {
+    if (!heatmapScrollRef.current || !heatmap) return;
+    if (initialHeatmapPositionedRef.current) return;
+    const tick = heatmap.yearTicks.find((item) => item.label === currentYearLabel);
+    if (!tick) return;
+    const cellWidth = 0.78 * 16 + 4;
+    const left = tick.weekIndex * cellWidth - 64;
+    heatmapScrollRef.current.scrollLeft = Math.max(0, left);
+    initialHeatmapPositionedRef.current = true;
+  }, [heatmap, currentYearLabel]);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipTimerRef.current) window.clearTimeout(tooltipTimerRef.current);
+    };
+  }, []);
+
+  const queueTooltip = (target: Element, hour: number, sec: number) => {
+    if (!chartRef.current) return;
+    if (tooltipTimerRef.current) window.clearTimeout(tooltipTimerRef.current);
+
+    const containerRect = chartRef.current.getBoundingClientRect();
+    const rect = target.getBoundingClientRect();
+    const x = rect.left + rect.width / 2 - containerRect.left;
+    const y = rect.top - containerRect.top;
+    tooltipTimerRef.current = window.setTimeout(() => {
+      setChartTooltip({
+        x,
+        y,
+        label: `${hour.toString().padStart(2, "0")}:00`,
+        value: formatSec(sec),
+        placement: y < 40 ? "below" : "above",
+      });
+    }, 140);
+  };
+
+  const hideTooltip = () => {
+    if (tooltipTimerRef.current) window.clearTimeout(tooltipTimerRef.current);
+    setChartTooltip(null);
+  };
 
   if (loading) {
     return <main className="app-shell min-h-[100dvh] p-4">Loading friend analytics...</main>;
@@ -307,7 +359,7 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                 </button>
               </div>
               <div className="mt-3 grid gap-2 md:grid-cols-7">
-                {recentDaily.map((entry, index) => (
+                {currentWeekDaily.map((entry, index) => (
                   <button
                     key={`${entry.day.toISOString()}-${index}`}
                     type="button"
@@ -349,29 +401,19 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                 <div ref={chartRef} className="relative min-w-[640px]">
                   {chartType === "bar" ? (
                     <div className="grid h-44 grid-cols-24 items-end gap-1">
-                      {selectedHourTotals.map((sec, hour) => (
-                        <div key={hour} className="flex min-w-0 items-end justify-center">
-                          <div
-                            className="w-full rounded-t-[3px] bg-accent transition-[height] duration-300"
-                            style={{ height: `${Math.max(4, Math.round(toPercent(sec, maxHour) * 1.76))}px` }}
-                            title={`${hour.toString().padStart(2, "0")}:00 - ${formatSec(sec)}`}
-                            onMouseEnter={(event) => {
-                              if (!chartRef.current) return;
-                              const containerRect = chartRef.current.getBoundingClientRect();
-                              const rect = event.currentTarget.getBoundingClientRect();
-                              const y = rect.top - containerRect.top;
-                              setChartTooltip({
-                                x: rect.left + rect.width / 2 - containerRect.left,
-                                y,
-                                label: `${hour.toString().padStart(2, "0")}:00`,
-                                value: formatSec(sec),
-                                placement: y < 40 ? "below" : "above",
-                              });
-                            }}
-                            onMouseLeave={() => setChartTooltip(null)}
-                          />
-                        </div>
-                      ))}
+                      {selectedHourTotals.map((sec, hour) => {
+                        const valuePercent = toPercent(sec, maxHour);
+                        return (
+                          <div key={hour} className="flex min-w-0 items-end justify-center">
+                            <div
+                              className="w-full rounded-t-[3px] bg-accent transition-[height] duration-300"
+                              style={{ height: `${Math.max(4, Math.round(valuePercent * 1.76))}px` }}
+                              onMouseEnter={(event) => queueTooltip(event.currentTarget, hour, sec)}
+                              onMouseLeave={hideTooltip}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="h-52">
@@ -384,7 +426,25 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                           points={linePointsScaled.map((point) => `${point.x},${point.y}`).join(" ")}
                         />
                         {linePointsScaled.map((point) => (
-                          <circle key={point.hour} cx={point.x} cy={point.y} r="4.8" fill="var(--app-background)" stroke="var(--custom-color)" strokeWidth="2" />
+                          <g key={point.hour}>
+                            <circle
+                              cx={point.x}
+                              cy={point.y}
+                              r="9"
+                              fill="transparent"
+                              onMouseEnter={(event) => queueTooltip(event.currentTarget, point.hour, point.sec)}
+                              onMouseLeave={hideTooltip}
+                            />
+                            <circle
+                              cx={point.x}
+                              cy={point.y}
+                              r="4.8"
+                              fill="var(--app-background)"
+                              stroke="var(--custom-color)"
+                              strokeWidth="2"
+                              pointerEvents="none"
+                            />
+                          </g>
                         ))}
                       </svg>
                     </div>
@@ -422,11 +482,27 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
             {heatmap ? (
               <section className="mt-4 rounded border border-theme surface p-3">
                 <h2 className="text-sm font-semibold">Focus heat map</h2>
-                <div className="mt-3 overflow-x-auto">
+                <div ref={heatmapScrollRef} className="mt-3 overflow-x-auto">
                   <div className="inline-block" style={{ minWidth: `max(100%, ${heatmap.weeks.length * 14 + 120}px)` }}>
                     <div className="mb-1 flex items-end gap-2">
                       <div className="w-8 shrink-0" />
-                      <div className="grid gap-1 text-[10px] font-medium text-muted" style={{ gridTemplateColumns: `repeat(${heatmap.weeks.length}, 0.78rem)` }}>
+                      <div
+                        className="relative grid gap-1 text-[10px] font-semibold text-muted"
+                        style={{ gridTemplateColumns: `repeat(${heatmap.weeks.length}, 0.78rem)` }}
+                      >
+                        {heatmap.yearTicks.map((year) => (
+                          <span key={`year-${year.label}-${year.weekIndex}`} style={{ gridColumnStart: year.weekIndex + 1 }}>
+                            {year.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mb-1 flex items-end gap-2">
+                      <div className="w-8 shrink-0" />
+                      <div
+                        className="grid gap-1 text-[10px] font-medium text-muted"
+                        style={{ gridTemplateColumns: `repeat(${heatmap.weeks.length}, 0.78rem)` }}
+                      >
                         {heatmap.monthTicks.map((month) => (
                           <span key={`${month.label}-${month.weekIndex}`} style={{ gridColumnStart: month.weekIndex + 1 }}>
                             {month.label}
@@ -434,35 +510,53 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
                         ))}
                       </div>
                     </div>
-                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((weekday, dayIndex) => (
-                      <div key={weekday} className="mb-1 flex items-center gap-2">
-                        <span className="w-8 shrink-0 text-xs text-muted">{weekday}</span>
-                        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${heatmap.weeks.length}, 0.78rem)` }}>
-                          {heatmap.weeks.map((week, weekIndex) => {
-                            const cell = week[dayIndex];
-                            const ratio = maxYearHeat > 0 ? cell.value / maxYearHeat : 0;
-                            const redMix = Math.max(14, Math.round(10 + ratio * 64));
-                            const isSelected = selectedHeatCell?.dateKey === cell.dateKey;
-                            return (
-                              <button
-                                key={`${weekIndex}-${dayIndex}`}
-                                type="button"
-                                className={`h-[0.8rem] w-[0.8rem] rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-[var(--custom-color)]" : ""}`}
-                                style={{
-                                  backgroundColor: cell.inRange
-                                    ? cell.value > 0
-                                      ? `color-mix(in oklab, var(--custom-color) ${redMix}%, var(--app-background))`
-                                      : "color-mix(in oklab, #8f959d 34%, var(--app-background))"
-                                    : "var(--ui-button-bg-alt)",
-                                  opacity: cell.inRange ? 1 : 0.35,
-                                }}
-                                onClick={() => setSelectedHeatCell({ dateKey: cell.dateKey, value: cell.value })}
-                              />
-                            );
-                          })}
+
+                    <div className="space-y-1">
+                      {WEEKDAY_LABELS.map((weekday, dayIndex) => (
+                        <div key={weekday} className="flex items-center gap-2">
+                          <span className="w-8 shrink-0 text-xs text-muted">{weekday}</span>
+                          <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${heatmap.weeks.length}, 0.78rem)` }}>
+                            {heatmap.weeks.map((week, weekIndex) => {
+                              const cell = week[dayIndex];
+                              const ratio = maxYearHeat > 0 ? cell.value / maxYearHeat : 0;
+                              const sec = cell.value;
+                              let redMix = 0;
+                              if (sec >= 4 * 3600) redMix = 74;
+                              else if (sec >= 2 * 3600) redMix = 60;
+                              else if (sec >= 60 * 60) redMix = 46;
+                              else if (sec >= 30 * 60) redMix = 33;
+                              else if (sec >= 10 * 60) redMix = 22;
+                              else if (sec > 0) redMix = 14;
+                              const mixPercent = Math.max(redMix, Math.round(10 + ratio * 64));
+                              const isSelected = selectedHeatCell?.dateKey === cell.dateKey;
+                              return (
+                                <button
+                                  key={`${weekIndex}-${dayIndex}`}
+                                  type="button"
+                                  className={`h-[0.8rem] w-[0.8rem] rounded-[3px] border border-theme ${isSelected ? "ring-1 ring-offset-1 ring-offset-transparent ring-[var(--custom-color)]" : ""}`}
+                                  style={{
+                                    borderColor: isSelected ? "var(--custom-color)" : undefined,
+                                    backgroundColor: cell.inRange
+                                      ? sec > 0
+                                        ? `color-mix(in oklab, var(--custom-color) ${mixPercent}%, var(--app-background))`
+                                        : "color-mix(in oklab, #8f959d 34%, var(--app-background))"
+                                      : "var(--ui-button-bg-alt)",
+                                    opacity: cell.inRange ? 1 : 0.35,
+                                    boxShadow: yearBreakWeeks.has(weekIndex) && !isSelected
+                                      ? "inset 1px 0 0 color-mix(in oklab, #9aa0a8 65%, transparent)"
+                                      : undefined,
+                                    outline: isSelected ? "1px solid var(--custom-color)" : undefined,
+                                    outlineOffset: "1px",
+                                  }}
+                                  onClick={() => setSelectedHeatCell({ dateKey: cell.dateKey, value: cell.value })}
+                                  aria-label={`${cell.dateKey}: ${formatSec(cell.value)}`}
+                                />
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-muted">

@@ -417,6 +417,46 @@ export function useAnalyticsHistory() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const accessToken = localStorage.getItem("cheqlist-google-access-token");
+    if (!accessToken) return;
+
+    const snapshot = sharedSnapshotRef.current;
+    const hash = JSON.stringify(snapshot);
+    if (hash === lastSocialSyncHashRef.current) return;
+
+    if (socialSyncTimerRef.current) {
+      window.clearTimeout(socialSyncTimerRef.current);
+    }
+
+    socialSyncTimerRef.current = window.setTimeout(() => {
+      socialSyncTimerRef.current = null;
+      void fetch("/api/social/snapshot", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(snapshot),
+      })
+        .then((response) => {
+          if (!response.ok) return;
+          lastSocialSyncHashRef.current = hash;
+        })
+        .catch(() => {
+          // keep UI resilient; next change will retry
+        });
+    }, 220);
+
+    return () => {
+      if (socialSyncTimerRef.current) {
+        window.clearTimeout(socialSyncTimerRef.current);
+        socialSyncTimerRef.current = null;
+      }
+    };
+  }, [sharedSnapshot]);
+
   return {
     ready: Boolean(sessions && tasks && lists),
     totalFocusSec,
