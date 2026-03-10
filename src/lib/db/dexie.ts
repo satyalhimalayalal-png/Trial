@@ -67,6 +67,17 @@ class PlannerDB extends Dexie {
       syncTombstones: "id, entityType, entityId, deletedAt, updatedAt",
     });
 
+    // Force a forward migration so older/stale local DBs that missed stores
+    // (e.g. recurrenceSeries/syncTombstones) are repaired in-place.
+    this.version(4).stores({
+      tasks: "id, [containerType+containerId+order], [containerType+containerId+completed], updatedAt, seriesId, occurrenceDateKey",
+      lists: "id, kind, order, archived, systemKey",
+      preferences: "id, updatedAt",
+      recurrenceSeries: "id, active, updatedAt",
+      focusSessions: "id, startAt, weekKey, dayKey, taskId",
+      syncTombstones: "id, entityType, entityId, deletedAt, updatedAt",
+    });
+
     this.installRealtimeSyncHooks();
   }
 
