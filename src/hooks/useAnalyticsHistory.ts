@@ -36,6 +36,22 @@ function forEachDaySlice(
   }
 }
 
+function forEachHourSlice(
+  startMs: number,
+  endMs: number,
+  onSlice: (sliceStartMs: number, sliceEndMs: number) => void,
+): void {
+  let cursor = startMs;
+  while (cursor < endMs) {
+    const nextHour = new Date(cursor);
+    nextHour.setMinutes(0, 0, 0);
+    nextHour.setHours(nextHour.getHours() + 1);
+    const sliceEnd = Math.min(nextHour.getTime(), endMs);
+    onSlice(cursor, sliceEnd);
+    cursor = sliceEnd;
+  }
+}
+
 export function useAnalyticsHistory() {
   const [nowTick, setNowTick] = useState(Date.now());
   const lastSocialSyncHashRef = useRef<string>("");
