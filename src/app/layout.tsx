@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeBridge } from "@/components/app/ThemeBridge";
 
 export const metadata: Metadata = {
-  title: "Teux Planner",
+  title: "Cheqlist",
   description: "Offline-first personal weekly planner",
 };
 
