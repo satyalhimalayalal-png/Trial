@@ -35,6 +35,11 @@ function normalizeRule(rule: RecurrenceRule): RecurrenceRule {
   };
 }
 
+function normalizeExcludedDateKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((item): item is string => isValidDayKey(typeof item === "string" ? item : undefined)))].sort();
+}
+
 export async function createOrUpdateSeriesForTask(
   taskId: string,
   inputRule: RecurrenceRule,
@@ -51,6 +56,7 @@ export async function createOrUpdateSeriesForTask(
 
   return db.transaction("rw", db.tasks, db.recurrenceSeries, async () => {
     const seriesId = task.seriesId ?? nanoid();
+    const existingSeries = task.seriesId ? await db.recurrenceSeries.get(seriesId) : null;
 
     if (task.seriesId) {
       const prior = await db.tasks.where("seriesId").equals(seriesId).toArray();
@@ -63,10 +69,11 @@ export async function createOrUpdateSeriesForTask(
       taskTitle: task.title,
       active: true,
       rule,
+      excludedDateKeys: normalizeExcludedDateKeys(existingSeries?.excludedDateKeys),
       containerType: "DAY",
       containerId: rule.startDate,
       createdAt: task.seriesId
-        ? (await db.recurrenceSeries.get(seriesId))?.createdAt ?? now
+        ? existingSeries?.createdAt ?? now
         : now,
       updatedAt: now,
     };
@@ -104,6 +111,7 @@ export async function syncSeriesOccurrences(
   const db = getDb();
   const series = await db.recurrenceSeries.get(seriesId);
   if (!series || !series.active) return;
+  const excludedDateKeys = new Set(normalizeExcludedDateKeys(series.excludedDateKeys));
 
   const dates = generateOccurrencesInRange(series.rule, rangeStart, rangeEnd);
   if (dates.length === 0) return;
@@ -115,6 +123,7 @@ export async function syncSeriesOccurrences(
   const inserts: Task[] = [];
 
   for (const dateKey of dates) {
+    if (excludedDateKeys.has(dateKey)) continue;
     if (existingByDate.has(dateKey)) continue;
 
     const maxOrder = sortByOrder(
@@ -139,6 +148,17 @@ export async function syncSeriesOccurrences(
 
   if (inserts.length > 0) {
     await db.tasks.bulkAdd(inserts);
+  }
+
+  const excludedTaskIds = existing
+    .filter((task) => {
+      const dateKey = task.occurrenceDateKey ?? "";
+      return excludedDateKeys.has(dateKey);
+    })
+    .map((task) => task.id);
+  if (excludedTaskIds.length > 0) {
+    await db.tasks.bulkDelete(excludedTaskIds);
+    await markTasksDeleted(excludedTaskIds);
   }
 }
 

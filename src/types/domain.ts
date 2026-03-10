@@ -78,6 +78,7 @@ export interface RecurrenceSeries {
   taskTitle: string;
   active: boolean;
   rule: RecurrenceRule;
+  excludedDateKeys?: ISODate[];
   containerType: ContainerType;
   containerId: string;
   createdAt: ISODateTime;
