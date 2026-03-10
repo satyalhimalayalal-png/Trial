@@ -218,15 +218,20 @@ export function useAnalyticsHistory() {
   }, [completedTasks]);
 
   const completionSummary = useMemo(() => {
-    const total = (tasks ?? []).length;
-    const done = completedTasks.length;
+    const todayKey = format(startOfDay(new Date()), "yyyy-MM-dd");
+    const eligibleTasks = (tasks ?? []).filter((task) => {
+      if (task.containerType !== "DAY") return true;
+      return task.containerId <= todayKey;
+    });
+    const total = eligibleTasks.length;
+    const done = eligibleTasks.filter((task) => task.completed).length;
     return {
       total,
       done,
       open: Math.max(0, total - done),
       rate: total > 0 ? (done / total) * 100 : 0,
     };
-  }, [tasks, completedTasks]);
+  }, [tasks]);
 
   const projectBreakdown = useMemo(() => {
     const totals = new Map<string, number>();
