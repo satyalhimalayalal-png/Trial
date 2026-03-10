@@ -1,4 +1,4 @@
-import { addDays, parseISO } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import { nanoid } from "nanoid";
 import { getDb } from "@/lib/db/dexie";
 import { generateOccurrencesInRange } from "@/lib/domain/recurrence";
@@ -13,12 +13,12 @@ function isValidDayKey(value: string | undefined): value is string {
 function fallbackStartDate(task: Task): string {
   if (isValidDayKey(task.occurrenceDateKey)) return task.occurrenceDateKey;
   if (task.containerType === "DAY" && isValidDayKey(task.containerId)) return task.containerId;
-  return new Date().toISOString().slice(0, 10);
+  return format(new Date(), "yyyy-MM-dd");
 }
 
 function normalizeRule(rule: RecurrenceRule): RecurrenceRule {
   const fallbackDate =
-    isValidDayKey(rule.startDate) ? rule.startDate : new Date().toISOString().slice(0, 10);
+    isValidDayKey(rule.startDate) ? rule.startDate : format(new Date(), "yyyy-MM-dd");
   const startDay = new Date(`${fallbackDate}T00:00:00`).getDay();
   const safeWeekdays = (rule.weekdays ?? []).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6);
 
