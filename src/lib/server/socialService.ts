@@ -89,6 +89,12 @@ function normalizeNumberArray(
   return value.map((item, index) => ensureNonNegativeInt(item, `${field}[${index}]`));
 }
 
+function normalizeHourByDayTotals(value: unknown): number[][] {
+  if (!Array.isArray(value)) throw new Error("Invalid hour_by_day_totals_7x24");
+  if (value.length !== 7) throw new Error("Invalid hour_by_day_totals_7x24 length");
+  return value.map((row, day) => normalizeNumberArray(row, 24, `hour_by_day_totals_7x24[${day}]`));
+}
+
 function normalizeYearHeatmapDays(value: unknown): Array<{ dateKey: string; value: number }> {
   if (!Array.isArray(value)) throw new Error("Invalid year_heatmap_days");
   if (value.length > 1200) throw new Error("Invalid year_heatmap_days length");
@@ -648,6 +654,9 @@ export async function upsertSharedStatsSnapshot(
     current_streak_days: ensureNonNegativeInt(payload.current_streak_days ?? 0, "current_streak_days"),
     longest_streak_days: ensureNonNegativeInt(payload.longest_streak_days ?? 0, "longest_streak_days"),
     hour_totals_24: normalizeNumberArray(payload.hour_totals_24 ?? Array.from({ length: 24 }, () => 0), 24, "hour_totals_24"),
+    hour_by_day_totals_7x24: normalizeHourByDayTotals(
+      payload.hour_by_day_totals_7x24 ?? Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0)),
+    ),
     daily_totals_30d: normalizeNumberArray(payload.daily_totals_30d ?? Array.from({ length: 30 }, () => 0), 30, "daily_totals_30d"),
     weekly_totals_12w: normalizeNumberArray(payload.weekly_totals_12w ?? Array.from({ length: 12 }, () => 0), 12, "weekly_totals_12w"),
     monthly_totals_12m: normalizeNumberArray(payload.monthly_totals_12m ?? Array.from({ length: 12 }, () => 0), 12, "monthly_totals_12m"),
@@ -656,11 +665,23 @@ export async function upsertSharedStatsSnapshot(
     updated_at: now,
   };
 
-  const { data, error } = await supabaseAdmin
+  let { data, error } = await supabaseAdmin
     .from("shared_stats_snapshots")
     .upsert(normalized, { onConflict: "user_id" })
     .select("*")
     .single();
+
+  if (error?.message?.includes("hour_by_day_totals_7x24")) {
+    const legacyPayload = { ...normalized };
+    delete (legacyPayload as { hour_by_day_totals_7x24?: number[][] }).hour_by_day_totals_7x24;
+    const retry = await supabaseAdmin
+      .from("shared_stats_snapshots")
+      .upsert(legacyPayload, { onConflict: "user_id" })
+      .select("*")
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error || !data) throw new Error(error?.message ?? "Failed to upsert shared stats snapshot");
   return data;

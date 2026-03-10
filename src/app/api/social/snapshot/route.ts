@@ -14,6 +14,7 @@ export async function POST(request: Request) {
       current_streak_days?: number;
       longest_streak_days?: number;
       hour_totals_24?: number[];
+      hour_by_day_totals_7x24?: number[][];
       daily_totals_30d?: number[];
       weekly_totals_12w?: number[];
       monthly_totals_12m?: number[];

@@ -259,6 +259,32 @@ export function useAnalyticsHistory() {
     return totals;
   }, [withRealtime]);
 
+  const hourByDayTotals7x24 = useMemo(() => {
+    const start = startOfWeek(new Date(), { weekStartsOn: 0 });
+    const startMs = start.getTime();
+    const endMs = startMs + 7 * 24 * 60 * 60 * 1000;
+    const grid = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+
+    for (const session of withRealtime) {
+      const sec = Math.max(0, session.durationSec ?? 0);
+      if (sec <= 0) continue;
+      const sessionStartMs = new Date(session.startAt).getTime();
+      const sessionEndMs = sessionStartMs + sec * 1000;
+      const clampedStart = Math.max(sessionStartMs, startMs);
+      const clampedEnd = Math.min(sessionEndMs, endMs);
+      if (clampedStart >= clampedEnd) continue;
+
+      forEachHourSlice(clampedStart, clampedEnd, (sliceStartMs, sliceEndMs) => {
+        const dayIndex = Math.floor((sliceStartMs - startMs) / (24 * 60 * 60 * 1000));
+        if (dayIndex < 0 || dayIndex > 6) return;
+        const hour = new Date(sliceStartMs).getHours();
+        grid[dayIndex][hour] += (sliceEndMs - sliceStartMs) / 1000;
+      });
+    }
+
+    return grid.map((row) => row.map((value) => Math.round(value)));
+  }, [withRealtime]);
+
   const sessionsForGantt = useMemo(() => {
     return withRealtime
       .map((session) => {
@@ -343,13 +369,14 @@ export function useAnalyticsHistory() {
       current_streak_days: currentStreak,
       longest_streak_days: longestStreak,
       hour_totals_24: hourTotals24.map((value) => Math.round(value)),
+      hour_by_day_totals_7x24: hourByDayTotals7x24,
       daily_totals_30d: dailyFocus.map((point) => Math.round(point.value)),
       weekly_totals_12w: weeklyFocus.map((point) => Math.round(point.value)),
       monthly_totals_12m: monthlyFocus.map((point) => Math.round(point.value)),
       year_heatmap_days: yearHeatmapDays,
       last_active_at: lastActiveSession ? new Date(lastActiveSession).toISOString() : null,
     };
-  }, [dayTotalsMap, totalFocusSec, withRealtime, hourTotals24, dailyFocus, weeklyFocus, monthlyFocus, yearHeatmap.weeks]);
+  }, [dayTotalsMap, totalFocusSec, withRealtime, hourTotals24, hourByDayTotals7x24, dailyFocus, weeklyFocus, monthlyFocus, yearHeatmap.weeks]);
 
   const sharedSnapshotRef = useRef(sharedSnapshot);
   useEffect(() => {

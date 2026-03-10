@@ -51,8 +51,18 @@ function addMonths(date: Date, amount: number): Date {
 
 function MiniBarChart({ points }: { points: Point[] }) {
   const max = Math.max(...points.map((point) => point.value), 1);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const initialPositionedRef = useRef(false);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    if (initialPositionedRef.current) return;
+    scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    initialPositionedRef.current = true;
+  }, [points]);
+
   return (
-    <div className="overflow-x-auto">
+    <div ref={scrollRef} className="overflow-x-auto">
       <div className="min-w-[680px]">
         <div className="flex h-36 items-end gap-1">
           {points.map((point) => (
@@ -218,12 +228,16 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
   const hourTotals = stats?.hour_totals_24 ?? Array.from({ length: 24 }, () => 0);
   const selectedHourTotals = useMemo(() => {
     if (peakScope === "average") return hourTotals;
+    const fromSnapshot = stats?.hour_by_day_totals_7x24?.[peakScope];
+    if (fromSnapshot && fromSnapshot.length === 24) {
+      return fromSnapshot.map((value) => Math.max(0, Math.round(value)));
+    }
     const selectedDaily = currentWeekDaily[peakScope]?.value ?? 0;
     const avgDaily = currentWeekDaily.reduce((sum, entry) => sum + entry.value, 0) / Math.max(1, currentWeekDaily.length);
     if (avgDaily <= 0) return hourTotals;
     const scale = selectedDaily / avgDaily;
     return hourTotals.map((value) => Math.max(0, Math.round(value * scale)));
-  }, [hourTotals, peakScope, currentWeekDaily]);
+  }, [hourTotals, peakScope, currentWeekDaily, stats?.hour_by_day_totals_7x24]);
   const maxHour = useMemo(() => Math.max(...selectedHourTotals, 1), [selectedHourTotals]);
   const selectedPeakLabel = useMemo(() => {
     if (peakScope === "average") return "Weekly average";

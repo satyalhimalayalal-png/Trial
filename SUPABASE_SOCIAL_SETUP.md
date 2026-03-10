@@ -17,6 +17,7 @@ Run the SQL migration:
 - `supabase/migrations/20260309_000002_social_usernames.sql`
 - `supabase/migrations/20260310_000003_social_username_custom_flag.sql`
 - `supabase/migrations/20260310_000004_social_shared_stats_details.sql`
+- `supabase/migrations/20260310_000005_social_hour_by_day_7x24.sql`
 
 This creates:
 

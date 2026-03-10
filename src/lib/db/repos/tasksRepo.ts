@@ -45,10 +45,10 @@ export async function createTask(container: ContainerRef, title: string): Promis
 
 export async function restoreTask(task: Task): Promise<void> {
   const db = getDb();
-  await db.transaction("rw", db.tasks, db.syncTombstones, async () => {
+  await db.transaction("rw", db.tasks, async () => {
     await db.tasks.put(task);
-    await clearTaskTombstone(task.id);
   });
+  await clearTaskTombstone(task.id);
 }
 
 export async function updateTitle(taskId: string, title: string): Promise<void> {
@@ -73,10 +73,10 @@ export async function toggleComplete(taskId: string): Promise<void> {
 export async function deleteTask(taskId: string): Promise<void> {
   const db = getDb();
   const now = new Date().toISOString();
-  await db.transaction("rw", db.tasks, db.syncTombstones, async () => {
+  await db.transaction("rw", db.tasks, async () => {
     await db.tasks.delete(taskId);
-    await markTaskDeleted(taskId, now);
   });
+  await markTaskDeleted(taskId, now);
 }
 
 export async function getTask(taskId: string): Promise<Task | undefined> {
