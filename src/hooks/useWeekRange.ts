@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { addDays, startOfDay } from "date-fns";
+import { addDays, startOfDay, startOfWeek } from "date-fns";
 import type { ColumnsCount, WeekStartMode } from "@/types/domain";
 import { toDayKey } from "@/lib/domain/dates";
 
@@ -10,6 +10,10 @@ function getCenteredStartDate(anchorDate: Date, columns: ColumnsCount, mode: Wee
 
   if (mode === "YESTERDAY") {
     center = addDays(center, -1);
+  }
+
+  if (columns === 7) {
+    return startOfWeek(center, { weekStartsOn: 0 });
   }
 
   const half = Math.floor(columns / 2);
