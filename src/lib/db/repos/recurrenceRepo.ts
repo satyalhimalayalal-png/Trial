@@ -6,15 +6,31 @@ import { sortByOrder } from "@/lib/domain/ordering";
 import { clearTaskTombstone, markTasksDeleted } from "@/lib/db/repos/syncTombstonesRepo";
 import type { RecurrenceRule, RecurrenceSeries, Task } from "@/types/domain";
 
+function isValidDayKey(value: string | undefined): value is string {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
+function fallbackStartDate(task: Task): string {
+  if (isValidDayKey(task.occurrenceDateKey)) return task.occurrenceDateKey;
+  if (task.containerType === "DAY" && isValidDayKey(task.containerId)) return task.containerId;
+  return new Date().toISOString().slice(0, 10);
+}
+
 function normalizeRule(rule: RecurrenceRule): RecurrenceRule {
+  const fallbackDate =
+    isValidDayKey(rule.startDate) ? rule.startDate : new Date().toISOString().slice(0, 10);
+  const startDay = new Date(`${fallbackDate}T00:00:00`).getDay();
+  const safeWeekdays = (rule.weekdays ?? []).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6);
+
   return {
     ...rule,
     every: Math.max(1, Math.floor(rule.every || 1)),
+    startDate: fallbackDate,
     weekdays:
       rule.freq === "week"
-        ? rule.weekdays?.length
-          ? rule.weekdays
-          : [new Date(`${rule.startDate}T00:00:00`).getDay()]
+        ? safeWeekdays.length
+          ? safeWeekdays
+          : [startDay]
         : undefined,
   };
 }
@@ -27,7 +43,10 @@ export async function createOrUpdateSeriesForTask(
   const task = await db.tasks.get(taskId);
   if (!task || task.containerType !== "DAY") return null;
 
-  const rule = normalizeRule(inputRule);
+  const rule = normalizeRule({
+    ...inputRule,
+    startDate: isValidDayKey(inputRule.startDate) ? inputRule.startDate : fallbackStartDate(task),
+  });
   const now = new Date().toISOString();
 
   return db.transaction("rw", db.tasks, db.recurrenceSeries, async () => {

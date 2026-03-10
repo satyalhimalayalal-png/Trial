@@ -54,11 +54,39 @@ export function RecurrenceEditorModal({
   const [weekdays, setWeekdays] = useState<number[]>(
     initialRule?.weekdays ?? [new Date(`${defaultStartDate}T00:00:00`).getDay()],
   );
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   if (!open || !task) return null;
   const recurringAllowed = task.containerType === "DAY";
   const hasExistingSeries = Boolean(task.seriesId || initialRule);
   const canSaveRule = recurringAllowed && recurringEnabled;
+  const normalizedStartDate = /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : defaultStartDate;
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaveError(null);
+    setSaving(true);
+    try {
+      await onSave(task.id, {
+        title: title.trim() || task.title,
+        recurringEnabled: canSaveRule,
+        rule: canSaveRule
+          ? {
+              every: Math.max(1, Number(every) || 1),
+              freq,
+              startDate: normalizedStartDate,
+              weekdays,
+            }
+          : undefined,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save recurring task.";
+      setSaveError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -176,17 +204,10 @@ export function RecurrenceEditorModal({
           <button
             type="button"
             className="rounded border border-theme px-2 py-1 text-sm"
-            onClick={() =>
-              void onSave(task.id, {
-                title: title.trim() || task.title,
-                recurringEnabled: canSaveRule,
-                rule: canSaveRule
-                  ? { every, freq, startDate, weekdays }
-                  : undefined,
-              })
-            }
+            onClick={() => void handleSave()}
+            disabled={saving}
           >
-            Save
+            {saving ? "Saving..." : "Save"}
           </button>
 
           {hasExistingSeries ? (
@@ -199,6 +220,8 @@ export function RecurrenceEditorModal({
             </button>
           ) : null}
         </div>
+
+        {saveError ? <p className="mt-2 text-xs text-red-400">{saveError}</p> : null}
 
         {canSaveRule ? (
           <div className="mt-3 max-h-48 overflow-y-auto rounded border border-theme p-2 text-sm">
