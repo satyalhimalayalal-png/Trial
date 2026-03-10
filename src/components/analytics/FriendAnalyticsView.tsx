@@ -603,16 +603,16 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
 
             <section className="mt-4 rounded border border-theme surface p-3">
               <h2 className="text-sm font-semibold">Daily / Weekly / Monthly time stats</h2>
-              <div className="mt-3 grid gap-3 lg:grid-cols-3">
-                <div className="rounded border border-theme p-2">
+              <div className="mt-3 grid min-w-0 gap-3 lg:grid-cols-3">
+                <div className="min-w-0 rounded border border-theme p-2">
                   <p className="mb-2 text-xs font-semibold uppercase text-muted">Daily (30d)</p>
                   <MiniBarChart points={toPoints(stats.daily_totals_30d ?? [], "daily")} />
                 </div>
-                <div className="rounded border border-theme p-2">
+                <div className="min-w-0 rounded border border-theme p-2">
                   <p className="mb-2 text-xs font-semibold uppercase text-muted">Weekly (12w)</p>
                   <MiniBarChart points={toPoints(stats.weekly_totals_12w ?? [], "weekly")} />
                 </div>
-                <div className="rounded border border-theme p-2">
+                <div className="min-w-0 rounded border border-theme p-2">
                   <p className="mb-2 text-xs font-semibold uppercase text-muted">Monthly (12m)</p>
                   <MiniBarChart points={toPoints(stats.monthly_totals_12m ?? [], "monthly")} />
                 </div>

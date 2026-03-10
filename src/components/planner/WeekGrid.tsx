@@ -40,7 +40,7 @@ export function WeekGrid({
   onEditRecurring,
 }: WeekGridProps) {
   return (
-    <section className="h-full overflow-x-auto">
+    <section className="week-grid-scroll h-full overflow-x-auto overflow-y-hidden">
       <div
         key={motionKey}
         className={clsx(

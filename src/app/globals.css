@@ -694,6 +694,20 @@ textarea {
     padding: 0 0.5rem;
   }
 
+  .week-grid-scroll,
+  .bottom-lists-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .week-grid-scroll {
+    touch-action: pan-x;
+  }
+
+  .bottom-lists-scroll {
+    touch-action: pan-x pan-y;
+  }
+
   .day-nav-rail {
     display: none;
   }

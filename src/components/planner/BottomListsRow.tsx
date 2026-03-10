@@ -42,9 +42,9 @@ export function BottomListsRow({
   const minWidth = Math.max(960, listCount * 260);
 
   return (
-    <section className="h-full overflow-x-auto overflow-y-auto">
+    <section className="bottom-lists-scroll h-full overflow-x-auto overflow-y-auto">
       <div
-        className="grid h-full column-stack pr-3"
+        className="bottom-lists-track grid h-full column-stack pr-3"
         style={{
           gridTemplateColumns: `repeat(${lists.length}, minmax(240px, 1fr))`,
           minWidth: `${minWidth}px`,
