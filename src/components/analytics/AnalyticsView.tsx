@@ -122,11 +122,6 @@ export function AnalyticsView() {
     if (peakScope === "average") return "Weekly average";
     return `${weekdayLabels[peakScope]} focus pattern`;
   }, [peakScope]);
-  const lineScaleMax = useMemo(() => {
-    const sorted = [...selectedHourTotals].sort((a, b) => a - b);
-    const p90 = sorted[Math.floor(sorted.length * 0.9)] ?? 1;
-    return Math.max(1, p90);
-  }, [selectedHourTotals]);
   const linePointsScaled = useMemo(() => {
     const width = 960;
     const height = 176;
@@ -135,10 +130,10 @@ export function AnalyticsView() {
     const drawableH = bottom - top;
     return selectedHourTotals.map((sec, hour) => {
       const x = ((hour + 0.5) / 24) * width;
-      const y = bottom - (Math.min(Math.max(0, sec), lineScaleMax) / lineScaleMax) * drawableH;
+      const y = bottom - (Math.max(0, sec) / maxHour) * drawableH;
       return { x, y, hour, sec };
     });
-  }, [lineScaleMax, selectedHourTotals]);
+  }, [maxHour, selectedHourTotals]);
 
   const avgDailySec = useMemo(() => {
     if (!history.dailyFocus.length) return 0;
