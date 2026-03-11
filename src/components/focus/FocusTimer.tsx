@@ -28,6 +28,14 @@ const DEFAULT_CONFIG: PomodoroConfig = {
   breakMinutes: 5,
 };
 const PREFS_STORAGE_KEY = "focus-timer-prefs-v1";
+const POMODORO_RUNTIME_STORAGE_KEY = "focus-timer-pomodoro-runtime-v1";
+
+interface PomodoroRuntimeSnapshot {
+  phase: PomodoroPhase;
+  remainingSec: number;
+  pomodoroRunning: boolean;
+  phaseEndsAtMs: number | null;
+}
 
 export function FocusTimer() {
   const timer = useFocusTimer();
@@ -43,7 +51,6 @@ export function FocusTimer() {
   const [remainingSec, setRemainingSec] = useState(DEFAULT_CONFIG.focusMinutes * 60);
   const [pomodoroRunning, setPomodoroRunning] = useState(false);
   const [phaseEndsAtMs, setPhaseEndsAtMs] = useState<number | null>(null);
-  const [pomodoroOwnsSession, setPomodoroOwnsSession] = useState(false);
   const [alertTone, setAlertTone] = useState<AlertTone>("synth-chime");
   const [uploadedToneDataUrl, setUploadedToneDataUrl] = useState<string | null>(null);
   const [uploadedToneName, setUploadedToneName] = useState<string | null>(null);
@@ -101,6 +108,38 @@ export function FocusTimer() {
   }, [config.focusMinutes, config.breakMinutes, autoStartBreaks, autoStartPomodoros, alertTone]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = sessionStorage.getItem(POMODORO_RUNTIME_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<PomodoroRuntimeSnapshot>;
+      const nextPhase: PomodoroPhase = parsed.phase === "break" ? "break" : "focus";
+      const safeRemaining = Math.max(0, Math.floor(Number(parsed.remainingSec ?? 0)));
+      const nextEndsAt = typeof parsed.phaseEndsAtMs === "number" ? parsed.phaseEndsAtMs : null;
+      const running = Boolean(parsed.pomodoroRunning) && nextEndsAt !== null;
+      const projectedRemaining = running ? Math.max(0, Math.ceil((nextEndsAt - Date.now()) / 1000)) : safeRemaining;
+
+      setPhase(nextPhase);
+      setRemainingSec(projectedRemaining);
+      setPomodoroRunning(running);
+      setPhaseEndsAtMs(running ? nextEndsAt : null);
+    } catch {
+      // keep in-memory defaults when cache parse fails
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const snapshot: PomodoroRuntimeSnapshot = {
+      phase,
+      remainingSec,
+      pomodoroRunning,
+      phaseEndsAtMs: pomodoroRunning ? phaseEndsAtMs : null,
+    };
+    sessionStorage.setItem(POMODORO_RUNTIME_STORAGE_KEY, JSON.stringify(snapshot));
+  }, [phase, remainingSec, pomodoroRunning, phaseEndsAtMs]);
+
+  useEffect(() => {
     if (!expanded) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -120,6 +159,10 @@ export function FocusTimer() {
   }, [phaseDurationSec, remainingSec]);
   const ringFillColor = phase === "focus" ? "#cf2d2d" : "#2f72ea";
   const ringTrackColor = phase === "focus" ? "#4c1f1f" : "#1f3457";
+  const pomodoroHasActiveSession = timer.active && timer.source === "pomodoro";
+  const stopwatchActive = timer.active && (timer.source === "stopwatch" || timer.source === null);
+  const stopwatchBlockedByPomodoro = timer.active && timer.source === "pomodoro";
+  const stopwatchElapsedSec = stopwatchActive ? timer.elapsedSec : 0;
 
   useEffect(() => {
     setMode("pomodoro");
@@ -261,13 +304,12 @@ export function FocusTimer() {
     if (mode !== "pomodoro") {
       setPomodoroRunning(false);
       setPhaseEndsAtMs(null);
-      if (pomodoroOwnsSession && timer.active) {
+      if (pomodoroHasActiveSession) {
         void timer.stop();
       }
-      setPomodoroOwnsSession(false);
       return;
     }
-  }, [mode, pomodoroOwnsSession, timer.active, timer.stop]);
+  }, [mode, pomodoroHasActiveSession, timer.stop]);
 
   useEffect(() => {
     if (mode !== "pomodoro" || !pomodoroRunning) {
@@ -295,10 +337,9 @@ export function FocusTimer() {
     setPhaseEndsAtMs(null);
 
     if (phase === "focus") {
-      if (pomodoroOwnsSession && timer.active) {
+      if (pomodoroHasActiveSession) {
         void timer.stop();
       }
-      setPomodoroOwnsSession(false);
       setPhase("break");
       setRemainingSec(config.breakMinutes * 60);
       setPomodoroRunning(autoStartBreaks);
@@ -311,9 +352,8 @@ export function FocusTimer() {
     setPhase("focus");
     setRemainingSec(config.focusMinutes * 60);
     if (autoStartPomodoros) {
-      if (!timer.active) {
-        void timer.start();
-        setPomodoroOwnsSession(true);
+      if (!pomodoroHasActiveSession) {
+        void ensurePomodoroFocusSession();
       }
       setPomodoroRunning(true);
       setPhaseEndsAtMs(Date.now() + config.focusMinutes * 60 * 1000);
@@ -327,20 +367,25 @@ export function FocusTimer() {
     phase,
     config.focusMinutes,
     config.breakMinutes,
-    pomodoroOwnsSession,
-    timer.active,
+    pomodoroHasActiveSession,
     timer.start,
     timer.stop,
     autoStartBreaks,
     autoStartPomodoros,
   ]);
 
+  const ensurePomodoroFocusSession = async () => {
+    if (phase !== "focus") return;
+    if (timer.active && timer.source === "pomodoro") return;
+    if (timer.active && timer.source !== "pomodoro") {
+      await timer.stop();
+    }
+    await timer.start(undefined, "pomodoro");
+  };
+
   const startPomodoro = () => {
     primeRingtone();
-    if (phase === "focus" && !timer.active) {
-      void timer.start();
-      setPomodoroOwnsSession(true);
-    }
+    void ensurePomodoroFocusSession();
     const safeRemaining = Math.max(0, remainingSec);
     setPhaseEndsAtMs(Date.now() + safeRemaining * 1000);
     setPomodoroRunning(true);
@@ -352,32 +397,28 @@ export function FocusTimer() {
       setRemainingSec(left);
     }
     setPhaseEndsAtMs(null);
-    if (phase === "focus" && pomodoroOwnsSession && timer.active) {
+    if (phase === "focus" && pomodoroHasActiveSession) {
       void timer.stop();
     }
-    setPomodoroOwnsSession(false);
     setPomodoroRunning(false);
   };
 
   const resetPomodoro = () => {
     setPhaseEndsAtMs(null);
-    if (phase === "focus" && pomodoroOwnsSession && timer.active) {
-      void timer.stop();
+    if (phase === "focus" && pomodoroHasActiveSession) {
+      void timer.discard();
     }
-    setPomodoroOwnsSession(false);
     setPomodoroRunning(false);
     setRemainingSec(phaseDurationSec);
   };
 
   const jumpToPhase = (nextPhase: PomodoroPhase) => {
-    if (nextPhase === "break" && pomodoroOwnsSession && timer.active) {
+    if (nextPhase === "break" && pomodoroHasActiveSession) {
       void timer.stop();
-      setPomodoroOwnsSession(false);
     }
 
-    if (nextPhase === "focus" && !timer.active && pomodoroRunning) {
-      void timer.start();
-      setPomodoroOwnsSession(true);
+    if (nextPhase === "focus" && pomodoroRunning) {
+      void ensurePomodoroFocusSession();
     }
 
     setPhase(nextPhase);
@@ -456,10 +497,10 @@ export function FocusTimer() {
               onClick={() => setExpanded((prev) => !prev)}
               title={expanded ? "Minimize timer" : "Fullscreen timer"}
             >
-              {formatDuration(timer.elapsedSec)}
+              {formatDuration(stopwatchElapsedSec)}
             </button>
           </div>
-          {timer.active ? (
+          {stopwatchActive ? (
             <button
               className={expanded ? "rounded border border-theme px-14 py-5 text-4xl" : "rounded border border-theme px-3 py-1"}
               onClick={() => void timer.stop()}
@@ -469,7 +510,8 @@ export function FocusTimer() {
           ) : (
             <button
               className={expanded ? "rounded border border-theme px-14 py-5 text-4xl" : "rounded border border-theme px-3 py-1"}
-              onClick={() => void timer.start()}
+              disabled={stopwatchBlockedByPomodoro}
+              onClick={() => void timer.start(undefined, "stopwatch")}
             >
               Start
             </button>
