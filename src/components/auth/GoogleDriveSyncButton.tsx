@@ -9,14 +9,19 @@ import {
   mergePlannerBackups,
   type PlannerBackupV1,
 } from "@/lib/googleDriveStore";
+import {
+  GOOGLE_EMAIL_STORAGE_KEY,
+  GOOGLE_TOKEN_EXP_STORAGE_KEY,
+  GOOGLE_TOKEN_STORAGE_KEY,
+  clearGoogleSession,
+  readGoogleSession,
+  writeGoogleSession,
+} from "@/lib/auth/googleSession";
 import { PLANNER_DATA_CHANGED_EVENT } from "@/lib/sync/realtimeSyncSignal";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file openid email profile";
 const DRIVE_FOLDER_NAME = "CHEQLIST";
 const DRIVE_FILE_NAME = "cheqlist-backup-v1.json";
-const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
-const TOKEN_EXP_STORAGE_KEY = "cheqlist-google-access-exp";
-const EMAIL_STORAGE_KEY = "cheqlist-google-email";
 const KEEP_SIGNED_IN_KEY = "cheqlist-google-keep-signed-in";
 const ACTIVE_PROFILE_KEY = "cheqlist-active-profile";
 const ANON_PROFILE_ID = "anon";
@@ -243,17 +248,14 @@ export function GoogleDriveSyncButton({
     }
     const expiresAt = Date.now() + (response.expires_in ?? 3600) * 1000;
     const nextEmail = await getEmail(token);
-    if (keepSignedIn) {
-      localStorage.setItem(TOKEN_STORAGE_KEY, token);
-      localStorage.setItem(TOKEN_EXP_STORAGE_KEY, String(expiresAt));
-    } else {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(TOKEN_EXP_STORAGE_KEY);
-      localStorage.removeItem(EMAIL_STORAGE_KEY);
-    }
+    writeGoogleSession({
+      token,
+      expiresAt,
+      email: nextEmail,
+      keepSignedIn,
+    });
     if (nextEmail) {
       setEmail(nextEmail);
-      if (keepSignedIn) localStorage.setItem(EMAIL_STORAGE_KEY, nextEmail);
       const nextProfileId = toProfileIdFromEmail(nextEmail);
       const currentProfileId = getActiveProfileId();
       if (nextProfileId !== currentProfileId) {
@@ -279,9 +281,9 @@ export function GoogleDriveSyncButton({
   useEffect(() => {
     localStorage.setItem(KEEP_SIGNED_IN_KEY, keepSignedIn ? "1" : "0");
     if (!keepSignedIn) {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(TOKEN_EXP_STORAGE_KEY);
-      localStorage.removeItem(EMAIL_STORAGE_KEY);
+      localStorage.removeItem(GOOGLE_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(GOOGLE_TOKEN_EXP_STORAGE_KEY);
+      localStorage.removeItem(GOOGLE_EMAIL_STORAGE_KEY);
     }
   }, [keepSignedIn]);
 
@@ -298,11 +300,11 @@ export function GoogleDriveSyncButton({
       setReady(true);
       window.clearInterval(waitForGoogle);
 
-      const existingToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-      const existingExp = Number(localStorage.getItem(TOKEN_EXP_STORAGE_KEY) ?? "0");
-      const existingEmail = localStorage.getItem(EMAIL_STORAGE_KEY);
+      const existingSession = readGoogleSession();
+      const existingToken = existingSession?.token ?? null;
+      const existingEmail = existingSession?.email ?? null;
       if (existingEmail) setEmail(existingEmail);
-      if (keepSignedIn && existingToken && existingExp > Date.now()) {
+      if (existingToken) {
         if (existingEmail) {
           const desiredProfileId = toProfileIdFromEmail(existingEmail);
           const activeProfileId = getActiveProfileId();
@@ -497,9 +499,7 @@ export function GoogleDriveSyncButton({
     setStatus("Not connected");
     setEmail(null);
     setActiveProfileId(ANON_PROFILE_ID);
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem(TOKEN_EXP_STORAGE_KEY);
-    localStorage.removeItem(EMAIL_STORAGE_KEY);
+    clearGoogleSession();
     window.location.reload();
   };
 

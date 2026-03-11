@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { readGoogleSession } from "@/lib/auth/googleSession";
 import type { PrivacySettings, SharedStatsSnapshot, SocialUser } from "@/types/social";
 
-const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
-const EMAIL_STORAGE_KEY = "cheqlist-google-email";
 const SOCIAL_CACHE_PREFIX = "cheqlist-social-cache-v1";
 const DEFAULT_PRIVACY: Pick<PrivacySettings, "profile_visibility" | "stats_visibility" | "allow_friend_requests"> = {
   profile_visibility: "friends_only",
@@ -177,10 +176,11 @@ export function FriendsPanel() {
   );
 
   useEffect(() => {
-    const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const session = readGoogleSession();
+    const storedToken = session?.token ?? null;
+    const email = session?.email ?? null;
     setToken(storedToken);
     if (storedToken) {
-      const email = localStorage.getItem(EMAIL_STORAGE_KEY);
       const hit = hydrateFromCache(email);
       if (hit) setLoading(false);
     }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format, startOfDay, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from "date-fns";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getDb } from "@/lib/db/dexie";
+import { readGoogleSession } from "@/lib/auth/googleSession";
 import { PLANNER_DATA_CHANGED_EVENT } from "@/lib/sync/realtimeSyncSignal";
 import { useFocusStore } from "@/state/useFocusStore";
 import type { Task } from "@/types/domain";
@@ -409,7 +410,7 @@ export function useAnalyticsHistory() {
     let cancelled = false;
 
     const runSnapshotSync = () => {
-      const accessToken = localStorage.getItem("cheqlist-google-access-token");
+      const accessToken = readGoogleSession()?.token ?? null;
       if (!accessToken) return;
       const snapshot = sharedSnapshotRef.current;
       const hash = JSON.stringify(snapshot);
@@ -467,7 +468,7 @@ export function useAnalyticsHistory() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const accessToken = localStorage.getItem("cheqlist-google-access-token");
+    const accessToken = readGoogleSession()?.token ?? null;
     if (!accessToken) return;
 
     const snapshot = sharedSnapshotRef.current;

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format } from "date-fns";
 import { useTaskActions } from "@/hooks/useTaskActions";
+import { useAnalyticsHistory } from "@/hooks/useAnalyticsHistory";
 import { useWeekRange } from "@/hooks/useWeekRange";
 import { usePlannerUiStore } from "@/state/usePlannerUiStore";
 import { PlannerDndProvider } from "@/components/dnd/PlannerDndProvider";
@@ -213,6 +214,8 @@ function DayNavRail({
 }
 
 export function PlannerLayout({ lists, tasks, showBottomLists = true }: PlannerLayoutProps) {
+  useAnalyticsHistory();
+
   const {
     currentAnchorDate,
     editingTaskId,
@@ -506,6 +509,8 @@ export function PlannerLayout({ lists, tasks, showBottomLists = true }: PlannerL
 }
 
 export function TodayLayout({ tasks }: { tasks: Task[] }) {
+  useAnalyticsHistory();
+
   const taskActions = useTaskActions();
   const editingTaskId = usePlannerUiStore((state) => state.editingTaskId);
   const setEditingTaskId = usePlannerUiStore((state) => state.setEditingTaskId);
@@ -560,6 +565,8 @@ export function TodayLayout({ tasks }: { tasks: Task[] }) {
 }
 
 export function FocusWindowLayout({ tasks }: { tasks: Task[] }) {
+  useAnalyticsHistory();
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const selectedKey = toDayKey(selectedDate);
 

@@ -6,9 +6,8 @@ import { TopAccentBar } from "@/components/planner/TopAccentBar";
 import { PreferencesSidebar } from "@/components/planner/PreferencesSidebar";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { usePreferences } from "@/hooks/usePreferences";
+import { readGoogleSession } from "@/lib/auth/googleSession";
 import type { SharedStatsSnapshot, SocialUser } from "@/types/social";
-
-const TOKEN_STORAGE_KEY = "cheqlist-google-access-token";
 
 type ChartType = "bar" | "line";
 type Point = { label: string; value: number };
@@ -161,7 +160,7 @@ export function FriendAnalyticsView({ userId }: { userId: string }) {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const token = readGoogleSession()?.token ?? null;
     if (!token) {
       setError("Sign in with Google first.");
       setLoading(false);

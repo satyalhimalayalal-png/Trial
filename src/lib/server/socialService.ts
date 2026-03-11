@@ -225,15 +225,23 @@ async function getPrivacy(userId: string): Promise<PrivacySettings> {
   if (error) throw new Error(error.message);
   if (data) return data;
 
+  const { error: upsertError } = await supabaseAdmin
+    .from("privacy_settings")
+    .upsert(
+      {
+        user_id: userId,
+        ...DEFAULT_PRIVACY,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id", ignoreDuplicates: true },
+    );
+  if (upsertError) throw new Error(upsertError.message);
+
   const { data: inserted, error: insertError } = await supabaseAdmin
     .from("privacy_settings")
-    .insert({
-      user_id: userId,
-      ...DEFAULT_PRIVACY,
-      updated_at: new Date().toISOString(),
-    })
     .select("*")
-    .single();
+    .eq("user_id", userId)
+    .maybeSingle();
 
   if (insertError || !inserted) throw new Error(insertError?.message ?? "Failed to create privacy settings");
   return inserted;
