@@ -2,6 +2,7 @@ import type { ContainerRef } from "@/types/domain";
 
 const TASK_PREFIX = "task:";
 const CONTAINER_PREFIX = "container:";
+const LIST_COLUMN_PREFIX = "list-column:";
 
 export function taskDndId(taskId: string): string {
   return `${TASK_PREFIX}${taskId}`;
@@ -30,4 +31,14 @@ export function parseContainerDndId(id: string): ContainerRef | null {
     containerType,
     containerId,
   };
+}
+
+export function listColumnDndId(listId: string): string {
+  return `${LIST_COLUMN_PREFIX}${listId}`;
+}
+
+export function parseListColumnDndId(id: string): string | null {
+  if (!id.startsWith(LIST_COLUMN_PREFIX)) return null;
+  const payload = id.slice(LIST_COLUMN_PREFIX.length);
+  return payload || null;
 }

@@ -1,6 +1,8 @@
 "use client";
 
+import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { BottomListColumn } from "@/components/planner/BottomListColumn";
+import { listColumnDndId } from "@/lib/domain/dnd";
 import type {
   AccentColor,
   BulletStyle,
@@ -40,34 +42,37 @@ export function BottomListsRow({
 }: BottomListsRowProps) {
   const listCount = Math.max(lists.length, 3);
   const minWidth = Math.max(960, listCount * 260);
+  const listItemIds = lists.map((list) => listColumnDndId(list.id));
 
   return (
     <section className="bottom-lists-scroll h-full overflow-x-auto overflow-y-auto">
-      <div
-        className="bottom-lists-track grid h-full column-stack pr-3"
-        style={{
-          gridTemplateColumns: `repeat(${lists.length}, minmax(240px, 1fr))`,
-          minWidth: `${minWidth}px`,
-        }}
-      >
-        {lists.map((list) => (
-          <BottomListColumn
-            key={list.id}
-            list={list}
-            tasks={tasksByListId[list.id] ?? []}
-            editingTaskId={editingTaskId}
-            accentColor={accentColor}
-            bulletStyle={bulletStyle}
-            showLines={showLines}
-            onSetEditingTaskId={onSetEditingTaskId}
-            onAdd={onAdd}
-            onEdit={onEdit}
-            onToggle={onToggle}
-            onDelete={onDelete}
-            onDeleteList={onDeleteList}
-          />
-        ))}
-      </div>
+      <SortableContext items={listItemIds} strategy={horizontalListSortingStrategy}>
+        <div
+          className="bottom-lists-track grid h-full column-stack pr-3"
+          style={{
+            gridTemplateColumns: `repeat(${lists.length}, minmax(240px, 1fr))`,
+            minWidth: `${minWidth}px`,
+          }}
+        >
+          {lists.map((list) => (
+            <BottomListColumn
+              key={list.id}
+              list={list}
+              tasks={tasksByListId[list.id] ?? []}
+              editingTaskId={editingTaskId}
+              accentColor={accentColor}
+              bulletStyle={bulletStyle}
+              showLines={showLines}
+              onSetEditingTaskId={onSetEditingTaskId}
+              onAdd={onAdd}
+              onEdit={onEdit}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              onDeleteList={onDeleteList}
+            />
+          ))}
+        </div>
+      </SortableContext>
     </section>
   );
 }

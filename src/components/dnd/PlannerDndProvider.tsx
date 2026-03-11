@@ -15,14 +15,16 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { orderForDrop, sortByOrder } from "@/lib/domain/ordering";
-import { parseContainerDndId, parseTaskDndId } from "@/lib/domain/dnd";
+import { parseContainerDndId, parseListColumnDndId, parseTaskDndId } from "@/lib/domain/dnd";
 import type { ContainerRef, Task } from "@/types/domain";
 
 interface PlannerDndProviderProps {
   tasks: Task[];
+  listIds?: string[];
   children: React.ReactNode;
   onDragStartTask: (taskId: string | null) => void;
   onMoveTask: (taskId: string, to: ContainerRef, newOrder: number) => Promise<void>;
+  onMoveList?: (listId: string, toIndex: number) => Promise<void>;
   allowCrossTypeMoves?: boolean;
 }
 
@@ -56,6 +58,22 @@ function getOverContainer(tasks: Task[], overId: string): ContainerRef | null {
   };
 }
 
+function getOverListId(tasks: Task[], overId: string): string | null {
+  const listId = parseListColumnDndId(overId);
+  if (listId) return listId;
+
+  const container = parseContainerDndId(overId);
+  if (container?.containerType === "LIST") {
+    return container.containerId;
+  }
+
+  const overTaskId = parseTaskDndId(overId);
+  if (!overTaskId) return null;
+  const overTask = findTask(tasks, overTaskId);
+  if (!overTask || overTask.containerType !== "LIST") return null;
+  return overTask.containerId;
+}
+
 function getInsertIndex(tasks: Task[], overId: string): number {
   const overTaskId = parseTaskDndId(overId);
   if (!overTaskId) return tasks.length;
@@ -73,9 +91,11 @@ const collisionDetection: CollisionDetection = (args) => {
 
 export function PlannerDndProvider({
   tasks,
+  listIds = [],
   children,
   onDragStartTask,
   onMoveTask,
+  onMoveList,
   allowCrossTypeMoves = false,
 }: PlannerDndProviderProps) {
   const sensors = useSensors(
@@ -91,6 +111,20 @@ export function PlannerDndProvider({
 
   const handleDragEnd = async (event: DragEndEvent) => {
     onDragStartTask(null);
+
+    const activeListId = parseListColumnDndId(String(event.active.id));
+    if (activeListId) {
+      if (!event.over || !onMoveList || listIds.length === 0) return;
+      const overListId = getOverListId(tasks, String(event.over.id));
+      if (!overListId) return;
+
+      const fromIndex = listIds.indexOf(activeListId);
+      const toIndex = listIds.indexOf(overListId);
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+
+      await onMoveList(activeListId, toIndex);
+      return;
+    }
 
     const activeTaskId = parseTaskDndId(String(event.active.id));
     if (!activeTaskId || !event.over) return;

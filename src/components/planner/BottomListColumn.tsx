@@ -1,6 +1,10 @@
 "use client";
 
+import { CSS } from "@dnd-kit/utilities";
+import { useSortable } from "@dnd-kit/sortable";
+import clsx from "clsx";
 import { TaskListColumn } from "@/components/planner/TaskListColumn";
+import { listColumnDndId } from "@/lib/domain/dnd";
 import type {
   AccentColor,
   BulletStyle,
@@ -25,26 +29,55 @@ interface BottomListColumnProps {
 }
 
 export function BottomListColumn({ list, onDeleteList, ...rest }: BottomListColumnProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: listColumnDndId(list.id),
+    data: {
+      type: "list-column",
+      listId: list.id,
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
-    <TaskListColumn
-      variant="list"
-      containerType="LIST"
-      containerId={list.id}
-      title={list.name}
-      headerAction={
-        list.kind === "CUSTOM" && onDeleteList ? (
-          <button
-            type="button"
-            className="rounded px-1 text-[14px] leading-none text-muted hover:text-[var(--custom-color)]"
-            title="Delete list"
-            aria-label={`Delete list ${list.name}`}
-            onClick={() => void onDeleteList(list)}
-          >
-            ×
-          </button>
-        ) : undefined
-      }
-      {...rest}
-    />
+    <div ref={setNodeRef} style={style} className={clsx("h-full", isDragging && "opacity-80")}>
+      <TaskListColumn
+        variant="list"
+        containerType="LIST"
+        containerId={list.id}
+        title={list.name}
+        headerAction={
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="rounded px-1 text-[12px] leading-none text-muted hover:text-[var(--custom-color)]"
+              aria-label={`Reorder list ${list.name}`}
+              title="Drag to reorder list"
+              onPointerDown={(event) => event.stopPropagation()}
+              {...attributes}
+              {...listeners}
+            >
+              ⋮⋮
+            </button>
+            {list.kind === "CUSTOM" && onDeleteList ? (
+              <button
+                type="button"
+                className="rounded px-1 text-[14px] leading-none text-muted hover:text-[var(--custom-color)]"
+                title="Delete list"
+                aria-label={`Delete list ${list.name}`}
+                onClick={() => void onDeleteList(list)}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
+        }
+        {...rest}
+      />
+    </div>
   );
 }

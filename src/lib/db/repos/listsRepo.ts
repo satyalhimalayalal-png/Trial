@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { getDb } from "@/lib/db/dexie";
 import { ensureDefaultLists } from "@/lib/db/seeds";
 import { markTasksDeleted } from "@/lib/db/repos/syncTombstonesRepo";
+import { ORDER_STEP } from "@/lib/domain/ordering";
 import type { PlannerList } from "@/types/domain";
 
 export async function getActiveLists(): Promise<PlannerList[]> {
@@ -62,4 +63,36 @@ export async function deleteCustomList(listId: string): Promise<boolean> {
   });
 
   return true;
+}
+
+export async function reorderActiveLists(orderedListIds: string[]): Promise<void> {
+  const db = getDb();
+  await ensureDefaultLists();
+
+  if (orderedListIds.length === 0) return;
+
+  const activeRows = await db.lists.filter((list) => !list.archived).toArray();
+  const activeIds = new Set(activeRows.map((row) => row.id));
+  const normalizedIds = orderedListIds.filter((id, index, arr) => activeIds.has(id) && arr.indexOf(id) === index);
+  if (normalizedIds.length === 0) return;
+
+  // Keep any missing active ids stable at the end so no active list becomes orphaned.
+  const missingActiveIds = activeRows
+    .filter((row) => !normalizedIds.includes(row.id))
+    .sort((a, b) => a.order - b.order)
+    .map((row) => row.id);
+
+  const finalIds = [...normalizedIds, ...missingActiveIds];
+  const now = new Date().toISOString();
+
+  await db.transaction("rw", db.lists, async () => {
+    await Promise.all(
+      finalIds.map((id, index) =>
+        db.lists.update(id, {
+          order: (index + 1) * ORDER_STEP,
+          updatedAt: now,
+        }),
+      ),
+    );
+  });
 }

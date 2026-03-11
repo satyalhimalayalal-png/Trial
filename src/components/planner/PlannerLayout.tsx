@@ -24,7 +24,7 @@ import {
   listSeriesInstances,
   syncAllSeriesOccurrences,
 } from "@/lib/db/repos/recurrenceRepo";
-import { createCustomList, deleteCustomList } from "@/lib/db/repos/listsRepo";
+import { createCustomList, deleteCustomList, reorderActiveLists } from "@/lib/db/repos/listsRepo";
 import { FocusTimer } from "@/components/focus/FocusTimer";
 import { toDayKey } from "@/lib/domain/dates";
 import type { ContainerRef, PlannerList, RecurrenceRule, Task } from "@/types/domain";
@@ -367,6 +367,20 @@ export function PlannerLayout({ lists, tasks, showBottomLists = true }: PlannerL
     await deleteCustomList(list.id);
   };
 
+  const handleMoveList = async (listId: string, toIndex: number) => {
+    const currentIds = lists.map((list) => list.id);
+    const fromIndex = currentIds.indexOf(listId);
+    if (fromIndex < 0 || toIndex < 0 || toIndex >= currentIds.length || fromIndex === toIndex) {
+      return;
+    }
+
+    const reorderedIds = [...currentIds];
+    const [moved] = reorderedIds.splice(fromIndex, 1);
+    if (!moved) return;
+    reorderedIds.splice(toIndex, 0, moved);
+    await reorderActiveLists(reorderedIds);
+  };
+
   return (
     <PlannerChrome
       mode="planner"
@@ -377,7 +391,14 @@ export function PlannerLayout({ lists, tasks, showBottomLists = true }: PlannerL
       onPatchPreferences={patchPreferences}
     >
       <div className="planner-canvas">
-        <PlannerDndProvider tasks={visibleTasks} onDragStartTask={setDraggingTaskId} onMoveTask={handleMove} allowCrossTypeMoves>
+        <PlannerDndProvider
+          tasks={visibleTasks}
+          listIds={lists.map((list) => list.id)}
+          onDragStartTask={setDraggingTaskId}
+          onMoveTask={handleMove}
+          onMoveList={handleMoveList}
+          allowCrossTypeMoves
+        >
           <section className="planner-top">
             <WeekGrid
               dates={dates}

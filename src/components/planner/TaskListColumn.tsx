@@ -84,8 +84,8 @@ export function TaskListColumn({
   return (
     <section className="checklist-pane flex h-full min-h-0 flex-col border-x border-theme px-2">
       <header className={variant === "day" ? "mb-2 shrink-0 pb-1 pt-5" : "mb-2 shrink-0 pb-1 pt-4"}>
-        <div className="flex items-start justify-between gap-1">
-          <div className={variant === "day" ? "w-full text-center" : "min-w-0 flex-1 text-center"}>
+        <div className={variant === "day" ? "flex items-start justify-between gap-1" : "relative min-h-[1.8rem]"}>
+          <div className={variant === "day" ? "w-full text-center" : "w-full text-center"}>
             {variant === "day" ? (
               <h3 className="day-title" style={highlightTitle ? { color: "var(--custom-color-highlight)" } : undefined}>
                 {title}
@@ -95,7 +95,9 @@ export function TaskListColumn({
             )}
             {subtitle ? <p className="day-subtitle">{subtitle}</p> : null}
           </div>
-          {headerAction ? <div className="mt-0.5">{headerAction}</div> : null}
+          {headerAction ? (
+            <div className={variant === "day" ? "mt-0.5" : "absolute right-0 top-0"}>{headerAction}</div>
+          ) : null}
         </div>
       </header>
 

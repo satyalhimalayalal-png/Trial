@@ -46,6 +46,7 @@ export function TaskItem({
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: taskDndId(task.id),
+    disabled: editing,
     data: {
       type: "task",
       taskId: task.id,
@@ -97,6 +98,7 @@ export function TaskItem({
               onFinishEdit();
             }}
             onKeyDown={async (event) => {
+              event.stopPropagation();
               if (event.key === "Enter") {
                 event.preventDefault();
                 const next = draft.trim();
