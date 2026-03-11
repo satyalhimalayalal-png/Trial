@@ -595,7 +595,7 @@ textarea {
   background-color: var(--someday-list-background);
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   padding-top: 0.2777777778rem;
 }
 

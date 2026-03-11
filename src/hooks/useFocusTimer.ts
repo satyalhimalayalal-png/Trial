@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { startFocusSession, stopFocusSession } from "@/lib/db/repos/focusRepo";
-import { useFocusStore } from "@/state/useFocusStore";
+import { discardFocusSession, startFocusSession, stopFocusSession } from "@/lib/db/repos/focusRepo";
+import { useFocusStore, type FocusTimerSource } from "@/state/useFocusStore";
 
 export function useFocusTimer() {
   const [nowMs, setNowMs] = useState(0);
   const activeSessionId = useFocusStore((state) => state.activeSessionId);
   const activeStartedAt = useFocusStore((state) => state.activeStartedAt);
+  const activeSource = useFocusStore((state) => state.activeSource);
   const setActive = useFocusStore((state) => state.setActive);
   const clearActive = useFocusStore((state) => state.clearActive);
 
@@ -25,11 +26,11 @@ export function useFocusTimer() {
   }, [activeStartedAt, nowMs]);
 
   const start = useCallback(
-    async (taskId?: string) => {
+    async (taskId?: string, source?: FocusTimerSource) => {
       if (activeSessionId) return;
       const session = await startFocusSession(taskId);
       setNowMs(new Date(session.startAt).getTime());
-      setActive(session.id, session.startAt, taskId);
+      setActive(session.id, session.startAt, taskId, source);
     },
     [activeSessionId, setActive],
   );
@@ -40,10 +41,18 @@ export function useFocusTimer() {
     clearActive();
   }, [activeSessionId, clearActive]);
 
+  const discard = useCallback(async () => {
+    if (!activeSessionId) return;
+    await discardFocusSession(activeSessionId);
+    clearActive();
+  }, [activeSessionId, clearActive]);
+
   return {
     active: Boolean(activeSessionId && activeStartedAt),
     elapsedSec,
+    source: activeSource,
     start,
     stop,
+    discard,
   };
 }

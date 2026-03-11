@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useFocusTimer } from "@/hooks/useFocusTimer";
+import type { FocusTimerSource } from "@/state/useFocusStore";
 
 function formatDuration(totalSec: number): string {
   const h = Math.floor(totalSec / 3600)
@@ -39,6 +40,11 @@ interface PomodoroRuntimeSnapshot {
 
 export function FocusTimer() {
   const timer = useFocusTimer();
+  const timerWithSource = timer as typeof timer & {
+    source?: FocusTimerSource | null;
+    discard?: () => Promise<void>;
+    start: (taskId?: string, source?: FocusTimerSource) => Promise<void>;
+  };
   const [mode, setMode] = useState<TimerMode>("pomodoro");
   const [expanded, setExpanded] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
@@ -159,9 +165,10 @@ export function FocusTimer() {
   }, [phaseDurationSec, remainingSec]);
   const ringFillColor = phase === "focus" ? "#cf2d2d" : "#2f72ea";
   const ringTrackColor = phase === "focus" ? "#4c1f1f" : "#1f3457";
-  const pomodoroHasActiveSession = timer.active && timer.source === "pomodoro";
-  const stopwatchActive = timer.active && (timer.source === "stopwatch" || timer.source === null);
-  const stopwatchBlockedByPomodoro = timer.active && timer.source === "pomodoro";
+  const timerSource = timerWithSource.source ?? null;
+  const pomodoroHasActiveSession = timer.active && timerSource === "pomodoro";
+  const stopwatchActive = timer.active && (timerSource === "stopwatch" || timerSource === null);
+  const stopwatchBlockedByPomodoro = timer.active && timerSource === "pomodoro";
   const stopwatchElapsedSec = stopwatchActive ? timer.elapsedSec : 0;
 
   useEffect(() => {
@@ -376,11 +383,11 @@ export function FocusTimer() {
 
   const ensurePomodoroFocusSession = async () => {
     if (phase !== "focus") return;
-    if (timer.active && timer.source === "pomodoro") return;
-    if (timer.active && timer.source !== "pomodoro") {
+    if (timer.active && timerSource === "pomodoro") return;
+    if (timer.active && timerSource !== "pomodoro") {
       await timer.stop();
     }
-    await timer.start(undefined, "pomodoro");
+    await timerWithSource.start(undefined, "pomodoro");
   };
 
   const startPomodoro = () => {
@@ -406,7 +413,11 @@ export function FocusTimer() {
   const resetPomodoro = () => {
     setPhaseEndsAtMs(null);
     if (phase === "focus" && pomodoroHasActiveSession) {
-      void timer.discard();
+      if (timerWithSource.discard) {
+        void timerWithSource.discard();
+      } else {
+        void timer.stop();
+      }
     }
     setPomodoroRunning(false);
     setRemainingSec(phaseDurationSec);
@@ -511,7 +522,7 @@ export function FocusTimer() {
             <button
               className={expanded ? "rounded border border-theme px-14 py-5 text-4xl" : "rounded border border-theme px-3 py-1"}
               disabled={stopwatchBlockedByPomodoro}
-              onClick={() => void timer.start(undefined, "stopwatch")}
+              onClick={() => void timerWithSource.start(undefined, "stopwatch")}
             >
               Start
             </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, type MouseEvent, useMemo, useRef, useState } from "react";
+import { type FormEvent, type HTMLAttributes, type MouseEvent, useMemo, useRef, useState } from "react";
 import { SortableTaskContext } from "@/components/dnd/SortableTaskContext";
 import { TaskItem } from "@/components/planner/TaskItem";
 import type { AccentColor, BulletStyle, ContainerRef, Task } from "@/types/domain";
@@ -18,6 +18,7 @@ interface TaskListColumnProps {
   bulletStyle: BulletStyle;
   showLines: boolean;
   headerAction?: React.ReactNode;
+  headerDragProps?: HTMLAttributes<HTMLElement>;
   onSetEditingTaskId: (taskId: string | null) => void;
   onAdd: (container: ContainerRef, title: string) => Promise<void>;
   onEdit: (taskId: string, title: string) => Promise<void>;
@@ -39,6 +40,7 @@ export function TaskListColumn({
   bulletStyle,
   showLines,
   headerAction,
+  headerDragProps,
   onSetEditingTaskId,
   onAdd,
   onEdit,
@@ -83,7 +85,14 @@ export function TaskListColumn({
 
   return (
     <section className="checklist-pane flex h-full min-h-0 flex-col border-x border-theme px-2">
-      <header className={variant === "day" ? "mb-2 shrink-0 pb-1 pt-5" : "mb-2 shrink-0 pb-1 pt-4"}>
+      <header
+        className={
+          variant === "day"
+            ? "mb-2 shrink-0 pb-1 pt-5"
+            : `mb-2 shrink-0 pb-1 pt-4 ${headerDragProps ? "cursor-grab select-none active:cursor-grabbing" : ""}`
+        }
+        {...(variant === "list" ? headerDragProps : undefined)}
+      >
         <div className={variant === "day" ? "flex items-start justify-between gap-1" : "relative min-h-[1.8rem]"}>
           <div className={variant === "day" ? "w-full text-center" : "w-full text-center"}>
             {variant === "day" ? (

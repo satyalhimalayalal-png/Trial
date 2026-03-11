@@ -49,19 +49,9 @@ export function BottomListColumn({ list, onDeleteList, ...rest }: BottomListColu
         containerType="LIST"
         containerId={list.id}
         title={list.name}
+        headerDragProps={{ ...attributes, ...listeners }}
         headerAction={
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="rounded px-1 text-[12px] leading-none text-muted hover:text-[var(--custom-color)]"
-              aria-label={`Reorder list ${list.name}`}
-              title="Drag to reorder list"
-              onPointerDown={(event) => event.stopPropagation()}
-              {...attributes}
-              {...listeners}
-            >
-              ⋮⋮
-            </button>
             {list.kind === "CUSTOM" && onDeleteList ? (
               <button
                 type="button"

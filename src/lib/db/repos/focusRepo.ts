@@ -47,6 +47,11 @@ export async function stopFocusSession(sessionId: string): Promise<void> {
   });
 }
 
+export async function discardFocusSession(sessionId: string): Promise<void> {
+  const db = getDb();
+  await db.focusSessions.delete(sessionId);
+}
+
 export async function listSessionsByWeek(weekKey: string): Promise<FocusSession[]> {
   const db = getDb();
   return db.focusSessions.where("weekKey").equals(weekKey).toArray();

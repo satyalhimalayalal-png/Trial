@@ -45,7 +45,7 @@ export function BottomListsRow({
   const listItemIds = lists.map((list) => listColumnDndId(list.id));
 
   return (
-    <section className="bottom-lists-scroll h-full overflow-x-auto overflow-y-auto">
+    <section className="bottom-lists-scroll h-full overflow-x-auto overflow-y-hidden">
       <SortableContext items={listItemIds} strategy={horizontalListSortingStrategy}>
         <div
           className="bottom-lists-track grid h-full column-stack pr-3"
