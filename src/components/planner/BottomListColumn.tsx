@@ -43,7 +43,7 @@ export function BottomListColumn({ list, onDeleteList, ...rest }: BottomListColu
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={clsx("h-full", isDragging && "opacity-80")}>
+    <div ref={setNodeRef} style={style} className={clsx("h-full min-h-0", isDragging && "opacity-80")}>
       <TaskListColumn
         variant="list"
         containerType="LIST"

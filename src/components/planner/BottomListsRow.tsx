@@ -45,10 +45,10 @@ export function BottomListsRow({
   const listItemIds = lists.map((list) => listColumnDndId(list.id));
 
   return (
-    <section className="bottom-lists-scroll h-full overflow-x-auto overflow-y-hidden">
+    <section className="bottom-lists-scroll h-full min-h-0 overflow-x-auto overflow-y-hidden">
       <SortableContext items={listItemIds} strategy={horizontalListSortingStrategy}>
         <div
-          className="bottom-lists-track grid h-full column-stack pr-3"
+          className="bottom-lists-track grid h-full min-h-0 column-stack pr-3"
           style={{
             gridTemplateColumns: `repeat(${lists.length}, minmax(240px, 1fr))`,
             minWidth: `${minWidth}px`,
