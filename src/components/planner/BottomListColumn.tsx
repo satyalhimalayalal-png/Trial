@@ -24,7 +24,7 @@ interface BottomListColumnProps {
   onAdd: (container: ContainerRef, title: string, options?: { parentTaskId?: string }) => Promise<Task>;
   onEdit: (taskId: string, title: string) => Promise<void>;
   onToggle: (taskId: string) => Promise<void>;
-  onDelete: (taskId: string) => Promise<void>;
+  onDelete: (taskId: string) => Promise<unknown>;
   onDeleteList?: (list: PlannerList) => Promise<void>;
 }
 

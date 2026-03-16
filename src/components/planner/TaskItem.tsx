@@ -26,7 +26,7 @@ interface TaskItemProps {
   onFinishEdit: () => void;
   onTitleCommit: (taskId: string, title: string) => Promise<void>;
   onToggle: (taskId: string) => Promise<void>;
-  onDelete: (taskId: string) => Promise<void>;
+  onDelete: (taskId: string) => Promise<unknown>;
   onEditRecurring?: (taskId: string) => void;
 }
 

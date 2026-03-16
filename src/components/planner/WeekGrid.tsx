@@ -18,7 +18,7 @@ interface WeekGridProps {
   onAdd: (container: ContainerRef, title: string, options?: { parentTaskId?: string }) => Promise<Task>;
   onEdit: (taskId: string, title: string) => Promise<void>;
   onToggle: (taskId: string) => Promise<void>;
-  onDelete: (taskId: string) => Promise<void>;
+  onDelete: (taskId: string) => Promise<unknown>;
   onEditRecurring?: (taskId: string) => void;
 }
 
