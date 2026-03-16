@@ -14,7 +14,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { orderForDrop, sortTasksForDisplay } from "@/lib/domain/ordering";
+import { orderForDrop, sortByOrder } from "@/lib/domain/ordering";
 import { parseContainerDndId, parseListColumnDndId, parseTaskDndId } from "@/lib/domain/dnd";
 import type { ContainerRef, Task } from "@/types/domain";
 
@@ -33,7 +33,7 @@ function findTask(tasks: Task[], taskId: string): Task | undefined {
 }
 
 function tasksInContainer(tasks: Task[], container: ContainerRef): Task[] {
-  return sortTasksForDisplay(
+  return sortByOrder(
     tasks.filter(
       (task) =>
         task.containerType === container.containerType &&

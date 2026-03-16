@@ -12,8 +12,6 @@ export interface Task {
   containerType: ContainerType;
   containerId: string; // day key or list id
   order: number;
-  parentTaskId?: ID;
-  indentLevel?: number;
   seriesId?: ID;
   occurrenceDateKey?: ISODate;
 }

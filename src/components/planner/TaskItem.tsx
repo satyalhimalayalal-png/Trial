@@ -17,7 +17,6 @@ const accentColorMap: Record<AccentColor, string> = {
 
 interface TaskItemProps {
   task: Task;
-  indentLevel?: number;
   editing: boolean;
   accentColor: AccentColor;
   bulletStyle: BulletStyle;
@@ -26,13 +25,12 @@ interface TaskItemProps {
   onFinishEdit: () => void;
   onTitleCommit: (taskId: string, title: string) => Promise<void>;
   onToggle: (taskId: string) => Promise<void>;
-  onDelete: (taskId: string) => Promise<unknown>;
+  onDelete: (taskId: string) => Promise<void>;
   onEditRecurring?: (taskId: string) => void;
 }
 
 export function TaskItem({
   task,
-  indentLevel = 0,
   editing,
   accentColor,
   bulletStyle,
@@ -67,7 +65,7 @@ export function TaskItem({
   return (
     <div
       ref={setNodeRef}
-      style={{ ...style, paddingLeft: `${Math.max(0, indentLevel) * 0.9}rem` }}
+      style={style}
       data-task-item="true"
       data-completed={task.completed ? "true" : "false"}
       className={clsx("task-row group", !showLines && "task-row-no-lines", isDragging && "opacity-50")}

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getDb } from "@/lib/db/dexie";
 import { ensureDefaultLists } from "@/lib/db/seeds";
-import { sortTasksForDisplay } from "@/lib/domain/ordering";
+import { sortByOrder } from "@/lib/domain/ordering";
 import type { ContainerRef, PlannerList, Task } from "@/types/domain";
 
 const db = getDb();
@@ -19,7 +19,7 @@ function groupTasksByContainer(tasks: Task[]): Record<string, Task[]> {
   }
 
   for (const key of Object.keys(grouped)) {
-    grouped[key] = sortTasksForDisplay(grouped[key]);
+    grouped[key] = sortByOrder(grouped[key]);
   }
 
   return grouped;
@@ -48,7 +48,7 @@ export function usePlannerBoard() {
   const tasks = useLiveQuery<Task[]>(
     async () => {
       const rows = await db.tasks.toArray();
-      return sortTasksForDisplay(rows);
+      return sortByOrder(rows);
     },
     [],
   );

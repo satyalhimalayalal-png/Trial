@@ -13,10 +13,10 @@ interface WeekColumnProps {
   bulletStyle: BulletStyle;
   showLines: boolean;
   onSetEditingTaskId: (taskId: string | null) => void;
-  onAdd: (container: ContainerRef, title: string, options?: { parentTaskId?: string }) => Promise<Task>;
+  onAdd: (container: ContainerRef, title: string) => Promise<void>;
   onEdit: (taskId: string, title: string) => Promise<void>;
   onToggle: (taskId: string) => Promise<void>;
-  onDelete: (taskId: string) => Promise<unknown>;
+  onDelete: (taskId: string) => Promise<void>;
   onEditRecurring?: (taskId: string) => void;
 }
 

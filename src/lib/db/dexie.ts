@@ -78,15 +78,6 @@ class PlannerDB extends Dexie {
       syncTombstones: "id, entityType, entityId, deletedAt, updatedAt",
     });
 
-    this.version(5).stores({
-      tasks: "id, [containerType+containerId+order], [containerType+containerId+completed], updatedAt, seriesId, occurrenceDateKey, parentTaskId",
-      lists: "id, kind, order, archived, systemKey",
-      preferences: "id, updatedAt",
-      recurrenceSeries: "id, active, updatedAt",
-      focusSessions: "id, startAt, weekKey, dayKey, taskId",
-      syncTombstones: "id, entityType, entityId, deletedAt, updatedAt",
-    });
-
     this.installRealtimeSyncHooks();
   }
 
