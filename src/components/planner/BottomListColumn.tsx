@@ -21,7 +21,7 @@ interface BottomListColumnProps {
   bulletStyle: BulletStyle;
   showLines: boolean;
   onSetEditingTaskId: (taskId: string | null) => void;
-  onAdd: (container: ContainerRef, title: string) => Promise<void>;
+  onAdd: (container: ContainerRef, title: string, options?: { parentTaskId?: string }) => Promise<Task>;
   onEdit: (taskId: string, title: string) => Promise<void>;
   onToggle: (taskId: string) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;

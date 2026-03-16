@@ -7,6 +7,37 @@ export function sortByOrder(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
 }
 
+function compareSiblingTasks(a: Task, b: Task): number {
+  if (a.completed !== b.completed) return a.completed ? 1 : -1;
+  return a.order - b.order || a.createdAt.localeCompare(b.createdAt);
+}
+
+export function sortTasksForDisplay(tasks: Task[]): Task[] {
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const childrenByParent = new Map<string | null, Task[]>();
+
+  for (const task of tasks) {
+    const parentKey =
+      task.parentTaskId && tasksById.has(task.parentTaskId) ? task.parentTaskId : null;
+    const siblings = childrenByParent.get(parentKey) ?? [];
+    siblings.push(task);
+    childrenByParent.set(parentKey, siblings);
+  }
+
+  const ordered: Task[] = [];
+
+  const visit = (parentKey: string | null) => {
+    const siblings = [...(childrenByParent.get(parentKey) ?? [])].sort(compareSiblingTasks);
+    for (const task of siblings) {
+      ordered.push(task);
+      visit(task.id);
+    }
+  };
+
+  visit(null);
+  return ordered;
+}
+
 export function nextOrder(tasks: Task[]): number {
   if (tasks.length === 0) return ORDER_STEP;
   return sortByOrder(tasks)[tasks.length - 1].order + ORDER_STEP;

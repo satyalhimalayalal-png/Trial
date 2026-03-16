@@ -17,6 +17,7 @@ const accentColorMap: Record<AccentColor, string> = {
 
 interface TaskItemProps {
   task: Task;
+  indentLevel?: number;
   editing: boolean;
   accentColor: AccentColor;
   bulletStyle: BulletStyle;
@@ -31,6 +32,7 @@ interface TaskItemProps {
 
 export function TaskItem({
   task,
+  indentLevel = 0,
   editing,
   accentColor,
   bulletStyle,
@@ -65,7 +67,7 @@ export function TaskItem({
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, paddingLeft: `${Math.max(0, indentLevel) * 0.9}rem` }}
       data-task-item="true"
       data-completed={task.completed ? "true" : "false"}
       className={clsx("task-row group", !showLines && "task-row-no-lines", isDragging && "opacity-50")}

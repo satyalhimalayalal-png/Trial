@@ -310,14 +310,13 @@ export function PlannerLayout({ lists, tasks, showBottomLists = true }: PlannerL
   const recurrenceTask = tasks.find((task) => task.id === recurringTaskId) ?? null;
 
   const handleDelete = async (taskId: string) => {
-    const task = await taskActions.getTask(taskId);
-    if (!task) return;
-    await taskActions.deleteTask(taskId);
+    const deletedTasks = await taskActions.deleteTask(taskId);
+    if (deletedTasks.length === 0) return;
 
     setUndoAction({
-      label: "Task deleted",
+      label: deletedTasks.length > 1 ? "Task group deleted" : "Task deleted",
       run: async () => {
-        await taskActions.restoreTask(task);
+        await taskActions.restoreTasks(deletedTasks);
       },
     });
   };
