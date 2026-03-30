@@ -24,6 +24,7 @@ interface BottomListsRowProps {
   onToggle: (taskId: string) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;
   onDeleteList?: (list: PlannerList) => Promise<void>;
+  onToggleDailyReset?: (list: PlannerList) => Promise<void>;
 }
 
 export function BottomListsRow({
@@ -39,6 +40,7 @@ export function BottomListsRow({
   onToggle,
   onDelete,
   onDeleteList,
+  onToggleDailyReset,
 }: BottomListsRowProps) {
   const listCount = Math.max(lists.length, 3);
   const minWidth = Math.max(960, listCount * 260);
@@ -69,6 +71,7 @@ export function BottomListsRow({
               onToggle={onToggle}
               onDelete={onDelete}
               onDeleteList={onDeleteList}
+              onToggleDailyReset={onToggleDailyReset}
             />
           ))}
         </div>

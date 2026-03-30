@@ -26,9 +26,10 @@ interface BottomListColumnProps {
   onToggle: (taskId: string) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;
   onDeleteList?: (list: PlannerList) => Promise<void>;
+  onToggleDailyReset?: (list: PlannerList) => Promise<void>;
 }
 
-export function BottomListColumn({ list, onDeleteList, ...rest }: BottomListColumnProps) {
+export function BottomListColumn({ list, onDeleteList, onToggleDailyReset, ...rest }: BottomListColumnProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: listColumnDndId(list.id),
     data: {
@@ -52,6 +53,21 @@ export function BottomListColumn({ list, onDeleteList, ...rest }: BottomListColu
         headerDragProps={{ ...attributes, ...listeners }}
         headerAction={
           <div className="flex items-center gap-1">
+            {list.kind === "CUSTOM" && onToggleDailyReset ? (
+              <button
+                type="button"
+                className={clsx(
+                  "list-recurring-toggle",
+                  list.resetsDaily && "list-recurring-toggle-active",
+                )}
+                title={list.resetsDaily ? "Daily reset on" : "Enable daily reset"}
+                aria-label={list.resetsDaily ? `Disable daily reset for ${list.name}` : `Enable daily reset for ${list.name}`}
+                onClick={() => void onToggleDailyReset(list)}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                daily
+              </button>
+            ) : null}
             {list.kind === "CUSTOM" && onDeleteList ? (
               <button
                 type="button"
