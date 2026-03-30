@@ -25,12 +25,7 @@ import {
   listSeriesInstances,
   syncAllSeriesOccurrences,
 } from "@/lib/db/repos/recurrenceRepo";
-import {
-  createCustomList,
-  deleteCustomList,
-  reorderActiveLists,
-  toggleCustomListDailyReset,
-} from "@/lib/db/repos/listsRepo";
+import { createCustomList, deleteCustomList, reorderActiveLists } from "@/lib/db/repos/listsRepo";
 import { FocusTimer } from "@/components/focus/FocusTimer";
 import { toDayKey } from "@/lib/domain/dates";
 import type { ContainerRef, PlannerList, RecurrenceRule, Task } from "@/types/domain";
@@ -375,10 +370,6 @@ export function PlannerLayout({ lists, tasks, showBottomLists = true }: PlannerL
     await deleteCustomList(list.id);
   };
 
-  const handleToggleListDailyReset = async (list: PlannerList) => {
-    await toggleCustomListDailyReset(list.id);
-  };
-
   const handleMoveList = async (listId: string, toIndex: number) => {
     const currentIds = lists.map((list) => list.id);
     const fromIndex = currentIds.indexOf(listId);
@@ -455,7 +446,6 @@ export function PlannerLayout({ lists, tasks, showBottomLists = true }: PlannerL
                   onToggle={handleToggle}
                   onDelete={handleDelete}
                   onDeleteList={handleDeleteList}
-                  onToggleDailyReset={handleToggleListDailyReset}
                 />
               </section>
             </>

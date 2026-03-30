@@ -5,7 +5,6 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { getDb } from "@/lib/db/dexie";
 import { ensureDefaultLists } from "@/lib/db/seeds";
 import { sortByOrder } from "@/lib/domain/ordering";
-import { syncDailyResetLists } from "@/lib/db/repos/listsRepo";
 import type { ContainerRef, PlannerList, Task } from "@/types/domain";
 
 const db = getDb();
@@ -38,33 +37,6 @@ export function usePlannerBoard() {
 
     return () => {
       mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const syncRecurringLists = () => {
-      if (cancelled) return;
-      void syncDailyResetLists();
-    };
-
-    syncRecurringLists();
-
-    const onFocus = () => syncRecurringLists();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") syncRecurringLists();
-    };
-
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-    const intervalId = window.setInterval(syncRecurringLists, 60_000);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.clearInterval(intervalId);
     };
   }, []);
 

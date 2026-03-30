@@ -591,31 +591,6 @@ textarea {
   color: var(--ui-button-icon-hover-color);
 }
 
-.list-recurring-toggle {
-  background-color: transparent;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  color: var(--muted-text-color);
-  font-family: var(--ff-sans-condensed);
-  font-size: 0.5555555556rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  min-height: 1.2777777778rem;
-  padding: 0 0.5rem;
-  text-transform: uppercase;
-}
-
-.list-recurring-toggle:hover {
-  border-color: var(--todo-border-color);
-  color: var(--ribbon-text-color);
-}
-
-.list-recurring-toggle-active {
-  border-color: color-mix(in srgb, var(--custom-color) 36%, transparent);
-  color: var(--custom-color);
-}
-
 .planner-bottom {
   background-color: var(--someday-list-background);
   min-height: 0;

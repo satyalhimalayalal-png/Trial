@@ -30,8 +30,6 @@ export interface PlannerList {
   name: string;
   kind: "SYSTEM" | "CUSTOM";
   systemKey?: SystemListKey;
-  resetsDaily?: boolean;
-  lastResetDayKey?: ISODate;
   order: number;
   archived: boolean;
   createdAt: ISODateTime;

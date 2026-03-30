@@ -2,7 +2,6 @@ import { nanoid } from "nanoid";
 import { getDb } from "@/lib/db/dexie";
 import { ensureDefaultLists } from "@/lib/db/seeds";
 import { markTasksDeleted } from "@/lib/db/repos/syncTombstonesRepo";
-import { toDayKey } from "@/lib/domain/dates";
 import { ORDER_STEP } from "@/lib/domain/ordering";
 import type { PlannerList } from "@/types/domain";
 
@@ -28,8 +27,6 @@ export async function createCustomList(name: string): Promise<PlannerList | null
     id: nanoid(),
     name: trimmed,
     kind: "CUSTOM",
-    resetsDaily: false,
-    lastResetDayKey: undefined,
     order: maxOrder + 1024,
     archived: false,
     createdAt: now,
@@ -38,73 +35,6 @@ export async function createCustomList(name: string): Promise<PlannerList | null
 
   await db.lists.add(list);
   return list;
-}
-
-export async function toggleCustomListDailyReset(listId: string): Promise<PlannerList | null> {
-  const db = getDb();
-  const list = await db.lists.get(listId);
-
-  if (!list || list.archived || list.kind !== "CUSTOM") {
-    return null;
-  }
-
-  const now = new Date().toISOString();
-  const today = toDayKey(new Date());
-  const nextEnabled = !list.resetsDaily;
-  const patch: Partial<PlannerList> = {
-    resetsDaily: nextEnabled,
-    updatedAt: now,
-  };
-
-  if (nextEnabled) {
-    patch.lastResetDayKey = today;
-  }
-
-  await db.lists.update(listId, patch);
-  return (await db.lists.get(listId)) ?? null;
-}
-
-export async function syncDailyResetLists(today = new Date()): Promise<void> {
-  const db = getDb();
-  const todayKey = toDayKey(today);
-  const now = today.toISOString();
-
-  await db.transaction("rw", db.lists, db.tasks, async () => {
-    const listsToReset = await db.lists
-      .filter(
-        (list) =>
-          !list.archived &&
-          list.kind === "CUSTOM" &&
-          list.resetsDaily === true &&
-          list.lastResetDayKey !== todayKey,
-      )
-      .toArray();
-
-    for (const list of listsToReset) {
-      const completedTasks = await db.tasks
-        .filter(
-          (task) =>
-            task.containerType === "LIST" &&
-            task.containerId === list.id &&
-            task.completed,
-        )
-        .toArray();
-
-      await Promise.all(
-        completedTasks.map((task) =>
-          db.tasks.update(task.id, {
-            completed: false,
-            updatedAt: now,
-          }),
-        ),
-      );
-
-      await db.lists.update(list.id, {
-        lastResetDayKey: todayKey,
-        updatedAt: now,
-      });
-    }
-  });
 }
 
 export async function deleteCustomList(listId: string): Promise<boolean> {
