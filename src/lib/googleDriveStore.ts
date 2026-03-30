@@ -95,6 +95,38 @@ function mergeListsAndBuildAliases(
   return { lists: [...byIdentity.values()], aliases };
 }
 
+function mergeRecurrenceSeries(
+  local: PlannerBackupV1["data"]["recurrenceSeries"],
+  remote: PlannerBackupV1["data"]["recurrenceSeries"],
+): PlannerBackupV1["data"]["recurrenceSeries"] {
+  const merged = new Map<string, PlannerBackupV1["data"]["recurrenceSeries"][number]>();
+
+  for (const item of remote) {
+    merged.set(item.id, item);
+  }
+
+  for (const item of local) {
+    const prev = merged.get(item.id);
+    if (!prev) {
+      merged.set(item.id, item);
+      continue;
+    }
+
+    const newer = toEpoch(item.updatedAt) >= toEpoch(prev.updatedAt) ? item : prev;
+    const older = newer === item ? prev : item;
+    const excludedDateKeys = [...new Set([...(prev.excludedDateKeys ?? []), ...(item.excludedDateKeys ?? [])])].sort();
+
+    merged.set(item.id, {
+      ...older,
+      ...newer,
+      active: prev.active && item.active,
+      excludedDateKeys,
+    });
+  }
+
+  return [...merged.values()];
+}
+
 export function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBackupV1): PlannerBackupV1 {
   const { lists, aliases } = mergeListsAndBuildAliases(local.data.lists, remote.data.lists);
   const normalizeTask = (item: PlannerBackupV1["data"]["tasks"][number]) => {
@@ -136,7 +168,7 @@ export function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBacku
       tasks: mergedTasks,
       lists,
       preferences: mergeById(local.data.preferences, remote.data.preferences, (item) => item.updatedAt),
-      recurrenceSeries: mergeById(localSeries, remoteSeries, (item) => item.updatedAt),
+      recurrenceSeries: mergeRecurrenceSeries(localSeries, remoteSeries),
       focusSessions: mergeById(local.data.focusSessions, remote.data.focusSessions, (item) => item.updatedAt),
       syncTombstones: mergedTombstones,
     },
