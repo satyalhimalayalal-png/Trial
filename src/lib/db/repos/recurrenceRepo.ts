@@ -167,24 +167,20 @@ export async function deleteAllSeriesInstances(taskId: string): Promise<void> {
   const task = await db.tasks.get(taskId);
   const seriesId = task?.seriesId;
   if (!seriesId) return;
-
-  const cutoffKey = task.occurrenceDateKey ?? (task.containerType === "DAY" ? task.containerId : undefined);
-  if (!cutoffKey) return;
+  const now = new Date().toISOString();
 
   await db.transaction("rw", db.tasks, db.recurrenceSeries, async () => {
     const instances = await db.tasks.where("seriesId").equals(seriesId).toArray();
-    const targetIds = instances
-      .filter((instance) => (instance.occurrenceDateKey ?? "") >= cutoffKey)
-      .map((instance) => instance.id);
+    const targetIds = instances.map((instance) => instance.id);
 
     if (targetIds.length > 0) {
       await db.tasks.bulkDelete(targetIds);
-      await markTasksDeleted(targetIds);
+      await markTasksDeleted(targetIds, now);
     }
 
     await db.recurrenceSeries.update(seriesId, {
       active: false,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     });
   });
 }

@@ -36,7 +36,6 @@ function readBundle(
   if (expiresAt > 0 && expiresAt <= Date.now()) {
     storage.removeItem(tokenKey);
     storage.removeItem(expKey);
-    storage.removeItem(emailKey);
     return null;
   }
 
@@ -61,6 +60,15 @@ export function readGoogleSession(): { token: string; email: string | null } | n
   );
   if (sessionBundle) return { token: sessionBundle.token, email: sessionBundle.email };
   return null;
+}
+
+export function readGoogleEmailHint(): string | null {
+  if (typeof window === "undefined") return null;
+  return (
+    localStorage.getItem(GOOGLE_EMAIL_STORAGE_KEY) ??
+    sessionStorage.getItem(GOOGLE_SESSION_EMAIL_STORAGE_KEY) ??
+    null
+  );
 }
 
 export function writeGoogleSession({

@@ -146,6 +146,7 @@ export function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBacku
   const remoteTasks = remote.data.tasks.map(normalizeTask);
   const localSeries = local.data.recurrenceSeries.map(normalizeSeries);
   const remoteSeries = remote.data.recurrenceSeries.map(normalizeSeries);
+  const mergedSeries = mergeRecurrenceSeries(localSeries, remoteSeries);
   const mergedTombstones = mergeById(
     local.data.syncTombstones ?? [],
     remote.data.syncTombstones ?? [],
@@ -155,10 +156,16 @@ export function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBacku
     mergedTombstones.filter((row) => row.entityType === "task").map((row) => [row.entityId, row]),
   );
 
+  const inactiveSeriesIds = new Set(mergedSeries.filter((series) => !series.active).map((series) => series.id));
   const mergedTasks = mergeById(localTasks, remoteTasks, (item) => item.updatedAt).filter((task) => {
     const tombstone = taskTombstones.get(task.id);
-    if (!tombstone) return true;
-    return toEpoch(task.updatedAt) > toEpoch(tombstone.deletedAt);
+    if (tombstone && toEpoch(task.updatedAt) <= toEpoch(tombstone.deletedAt)) {
+      return false;
+    }
+    if (task.seriesId && inactiveSeriesIds.has(task.seriesId)) {
+      return false;
+    }
+    return true;
   });
 
   return {
@@ -168,7 +175,7 @@ export function mergePlannerBackups(local: PlannerBackupV1, remote: PlannerBacku
       tasks: mergedTasks,
       lists,
       preferences: mergeById(local.data.preferences, remote.data.preferences, (item) => item.updatedAt),
-      recurrenceSeries: mergeRecurrenceSeries(localSeries, remoteSeries),
+      recurrenceSeries: mergedSeries,
       focusSessions: mergeById(local.data.focusSessions, remote.data.focusSessions, (item) => item.updatedAt),
       syncTombstones: mergedTombstones,
     },

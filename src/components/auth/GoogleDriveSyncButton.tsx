@@ -14,6 +14,7 @@ import {
   GOOGLE_TOKEN_EXP_STORAGE_KEY,
   GOOGLE_TOKEN_STORAGE_KEY,
   clearGoogleSession,
+  readGoogleEmailHint,
   readGoogleSession,
   writeGoogleSession,
 } from "@/lib/auth/googleSession";
@@ -235,6 +236,7 @@ export function GoogleDriveSyncButton({
   const pendingSyncRef = useRef(false);
   const suppressRealtimeSyncRef = useRef(false);
   const realtimeSyncTimerRef = useRef<number | null>(null);
+  const silentRefreshAttemptedRef = useRef(false);
 
   const disabled = useMemo(() => !clientId, [clientId]);
   const initials = (email?.trim().charAt(0) || "U").toUpperCase();
@@ -302,7 +304,7 @@ export function GoogleDriveSyncButton({
 
       const existingSession = readGoogleSession();
       const existingToken = existingSession?.token ?? null;
-      const existingEmail = existingSession?.email ?? null;
+      const existingEmail = existingSession?.email ?? readGoogleEmailHint();
       if (existingEmail) setEmail(existingEmail);
       if (existingToken) {
         if (existingEmail) {
@@ -317,6 +319,10 @@ export function GoogleDriveSyncButton({
         tokenRef.current = existingToken;
         setSignedIn(true);
         setStatus("Connected");
+      } else if (keepSignedIn && existingEmail && !silentRefreshAttemptedRef.current) {
+        silentRefreshAttemptedRef.current = true;
+        setStatus("Restoring session...");
+        client.requestAccessToken({ prompt: "" });
       }
     }, 200);
 
